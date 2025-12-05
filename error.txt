@@ -1,0 +1,50 @@
+76246 WARNING: Execution of 'set_exe_build_timestamp' failed on attempt #1 / 20: Exception("Unable to access file 'C:\\Users\\Athi\\Desktop\\gym\\dist\\GymManagementSystem_DEBUG.exe': [Errno 22] Invalid argument: 'C:\\\\Users\\\\Athi\\\\Desktop\\\\gym\\\\dist\\\\GymManagementSystem_DEBUG.exe'"). Retrying in 0.05 second(s)...
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Athi\Desktop\gym\venv\Scripts\pyinstaller.exe\__main__.py", line 6, in <module>
+    sys.exit(_console_script_run())
+             ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\__main__.py", line 231, in _console_script_run
+    run()
+    ~~~^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\__main__.py", line 215, in run
+    run_build(pyi_config, spec_file, **vars(args))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\__main__.py", line 70, in run_build
+    PyInstaller.building.build_main.main(pyi_config, spec_file, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\build_main.py", line 1272, in main
+    build(specfile, distpath, workpath, clean_build)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\build_main.py", line 1210, in build
+    exec(code, spec_namespace)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "build_exe_debug.spec", line 44, in <module>
+    exe = EXE(
+        pyz,
+    ...<18 lines>...
+        icon=None,
+    )
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 675, in __init__
+    self.__postinit__()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\datastruct.py", line 184, in __postinit__
+    self.assemble()
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 880, in assemble
+    self._retry_operation(winutils.set_exe_build_timestamp, build_name, build_timestamp)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 1058, in _retry_operation
+    return func(*args)
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\utils\win32\winutils.py", line 56, in set_exe_build_timestamp
+    with pefile.PE(exe_path, fast_load=True) as pe:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\pefile.py", line 2941, in __init__
+    self.__parse__(name, data, fast_load)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\pefile.py", line 3021, in __parse__
+    stat = os.stat(fname)
+FileNotFoundError: [WinError 2] The system cannot find the file specified: 'C:\\Users\\Athi\\Desktop\\gym\\dist\\GymManagementSystem_DEBUG.exe'
+ERROR: Build failed
+Press any key to continue . . .
