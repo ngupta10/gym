@@ -1,4 +1,37 @@
-76246 WARNING: Execution of 'set_exe_build_timestamp' failed on attempt #1 / 20: Exception("Unable to access file 'C:\\Users\\Athi\\Desktop\\gym\\dist\\GymManagementSystem_DEBUG.exe': [Errno 22] Invalid argument: 'C:\\\\Users\\\\Athi\\\\Desktop\\\\gym\\\\dist\\\\GymManagementSystem_DEBUG.exe'"). Retrying in 0.05 second(s)...
+47932 INFO: checking EXE
+47933 INFO: Building EXE because EXE-00.toc is non existent
+47933 INFO: Building EXE from EXE-00.toc
+47933 INFO: Copying bootloader EXE to C:\Users\Athi\Desktop\gym\dist\GymManagementSystem_DEBUG.exe
+47935 WARNING: Execution of 'copyfile' failed on attempt #1 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.05 second(s)...
+47989 WARNING: Execution of 'copyfile' failed on attempt #2 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.06 second(s)...
+48046 WARNING: Execution of 'copyfile' failed on attempt #3 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.06 second(s)...
+48107 WARNING: Execution of 'copyfile' failed on attempt #4 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.06 second(s)...
+48173 WARNING: Execution of 'copyfile' failed on attempt #5 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.07 second(s)...
+48241 WARNING: Execution of 'copyfile' failed on attempt #6 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.07 second(s)...
+48316 WARNING: Execution of 'copyfile' failed on attempt #7 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.08 second(s)...
+48395 WARNING: Execution of 'copyfile' failed on attempt #8 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.08 second(s)...
+48482 WARNING: Execution of 'copyfile' failed on attempt #9 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.09 second(s)...
+48576 WARNING: Execution of 'copyfile' failed on attempt #10 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.10 second(s)...
+48679 WARNING: Execution of 'copyfile' failed on attempt #11 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.11 second(s)...
+48793 WARNING: Execution of 'copyfile' failed on attempt #12 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.12 second(s)...
+48920 WARNING: Execution of 'copyfile' failed on attempt #13 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.14 second(s)...
+49065 WARNING: Execution of 'copyfile' failed on attempt #14 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.17 second(s)...
+49234 WARNING: Execution of 'copyfile' failed on attempt #15 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.20 second(s)...
+49438 WARNING: Execution of 'copyfile' failed on attempt #16 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.25 second(s)...
+49691 WARNING: Execution of 'copyfile' failed on attempt #17 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.33 second(s)...
+50027 WARNING: Execution of 'copyfile' failed on attempt #18 / 20: PermissionError(13, 'Permission denied'). Retrying in 0.50 second(s)...
+50530 WARNING: Execution of 'copyfile' failed on attempt #19 / 20: PermissionError(13, 'Permission denied'). Retrying in 1.00 second(s)...
+51533 WARNING: Execution of 'copyfile' failed on attempt #20 / 20: PermissionError(13, 'Permission denied').
+Traceback (most recent call last):
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 1058, in _retry_operation
+    return func(*args)
+  File "C:\Users\Athi\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 315, in copyfile
+    with open(dst, 'wb') as fdst:
+         ~~~~^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\Athi\\Desktop\\gym\\dist\\GymManagementSystem_DEBUG.exe'
+
+The above exception was the direct cause of the following exception:
+
 Traceback (most recent call last):
   File "<frozen runpy>", line 198, in _run_module_as_main
   File "<frozen runpy>", line 88, in _run_code
@@ -23,7 +56,7 @@ Traceback (most recent call last):
   File "build_exe_debug.spec", line 44, in <module>
     exe = EXE(
         pyz,
-    ...<18 lines>...
+    ...<20 lines>...
         icon=None,
     )
   File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 675, in __init__
@@ -32,19 +65,11 @@ Traceback (most recent call last):
   File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\datastruct.py", line 184, in __postinit__
     self.assemble()
     ~~~~~~~~~~~~~^^
-  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 880, in assemble
-    self._retry_operation(winutils.set_exe_build_timestamp, build_name, build_timestamp)
-    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 1058, in _retry_operation
-    return func(*args)
-  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\utils\win32\winutils.py", line 56, in set_exe_build_timestamp
-    with pefile.PE(exe_path, fast_load=True) as pe:
-         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\pefile.py", line 2941, in __init__
-    self.__parse__(name, data, fast_load)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\pefile.py", line 3021, in __parse__
-    stat = os.stat(fname)
-FileNotFoundError: [WinError 2] The system cannot find the file specified: 'C:\\Users\\Athi\\Desktop\\gym\\dist\\GymManagementSystem_DEBUG.exe'
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 778, in assemble
+    self._retry_operation(shutil.copyfile, bootloader_exe, build_name)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Athi\Desktop\gym\venv\Lib\site-packages\PyInstaller\building\api.py", line 1077, in _retry_operation
+    raise RuntimeError(f"Execution of {func_name!r} failed - no more attempts left!") from e
+RuntimeError: Execution of 'copyfile' failed - no more attempts left!
 ERROR: Build failed
 Press any key to continue . . .
