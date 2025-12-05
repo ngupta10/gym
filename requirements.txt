@@ -1,0 +1,25 @@
+# Gym Management System Requirements
+# Python 3.8+ is required
+
+# Required packages:
+customtkinter>=5.0.0
+Pillow>=9.0.0  # Also used for PNG to JPEG conversion for WhatsApp
+pandas>=1.5.0
+openpyxl>=3.0.0
+pywhatkit>=5.4.0
+pyautogui>=0.9.54
+
+# Build tools (optional, only needed for creating .exe):
+# pyinstaller>=5.0.0
+
+# Standard library modules (usually included with Python):
+# - sqlite3 (Database - included with Python)
+# - datetime (Date handling - included with Python)
+# - tkinter (GUI - included with Python)
+
+# Installation:
+# pip install -r requirements.txt
+
+# Note: CustomTkinter provides a modern, beautiful UI while being
+# much simpler and more reliable than PySide6/Qt
+

@@ -1,0 +1,96 @@
+Date: 2/12/2025
+Time: 12:50
+Phone Number: +918750595245
+Message: Hello! This is a test message from the Gym Management System.
+--------------------
+Date: 2/12/2025
+Time: 12:52
+Phone Number: +918750595245
+Message: Hello! This is a test message from the Gym Management System.
+--------------------
+Date: 2/12/2025
+Time: 12:54
+Phone Number: +917005531177
+Message: Hello! This is a test message from the Luwang Fitness. Your membership is due for renewal on 15th December 2025. Please make the payment to avoid any inconvenience. Thank you.
+--------------------
+Date: 2/12/2025
+Time: 13:31
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:31
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:32
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. 1234
+--------------------
+Date: 2/12/2025
+Time: 13:33
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. 123123123123
+--------------------
+Date: 2/12/2025
+Time: 13:36
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:36
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. 1212121212
+--------------------
+Date: 2/12/2025
+Time: 13:39
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. asdasdasd
+--------------------
+Date: 2/12/2025
+Time: 13:41
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:43
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:51
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:54
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness.
+--------------------
+Date: 2/12/2025
+Time: 13:56
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. 12121212
+--------------------
+Date: 2/12/2025
+Time: 13:57
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. 12121212hjghghjghj
+--------------------
+Date: 2/12/2025
+Time: 18:3
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. Testing
+--------------------
+Date: 2/12/2025
+Time: 18:4
+Phone Number: +918750595245
+Message: Hello! This is a message from Luwang Fitness. Testing
+--------------------
+Date: 2/12/2025
+Time: 20:33
+Phone Number: +918131998366
+Image: /var/folders/nx/p34xl0ds2rndjll433z2ylqc0000gq/T/tmpwqbtfno7.jpg
+Caption: Hello Alan! This is a reminder from Luwang Fitness. Your membership fee of ₹1000.00 is due on 2025-12-03. Please make the payment to avoid any inconvenience. Thank you!
+--------------------
