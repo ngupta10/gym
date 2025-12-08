@@ -167,38 +167,39 @@ class WhatsAppManagement(ctk.CTkFrame):
     
     def setup_custom_section(self, parent):
         """Setup custom message section"""
-        # Configure parent to use grid for better control
-        parent.grid_rowconfigure(0, weight=0)  # Title row
-        parent.grid_rowconfigure(1, weight=0)  # Description row
-        parent.grid_rowconfigure(2, weight=0)  # Search row
-        parent.grid_rowconfigure(3, weight=0)  # Select buttons row
-        parent.grid_rowconfigure(4, weight=1)  # List row (expandable)
-        parent.grid_rowconfigure(5, weight=0)  # Message label row
-        parent.grid_rowconfigure(6, weight=0)  # Message text row
-        parent.grid_rowconfigure(7, weight=0)  # Button row (always visible, fixed at bottom)
+        # Configure parent to use grid - content scrollable, button fixed
+        parent.grid_rowconfigure(0, weight=1)  # Scrollable content area
+        parent.grid_rowconfigure(1, weight=0)  # Button row (always visible)
         parent.grid_columnconfigure(0, weight=1)
+        
+        # Scrollable content frame (everything except button)
+        scrollable_content = ctk.CTkScrollableFrame(
+            parent,
+            fg_color="transparent"
+        )
+        scrollable_content.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         
         # Section title
         section_title = ctk.CTkLabel(
-            parent,
+            scrollable_content,
             text="Custom Messages",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#1e293b"
         )
-        section_title.grid(row=0, column=0, sticky="w", pady=(20, 10), padx=20)
+        section_title.pack(anchor="w", pady=(20, 10), padx=20)
         
         # Description
         desc_label = ctk.CTkLabel(
-            parent,
+            scrollable_content,
             text="Select members and send them a custom message",
             font=ctk.CTkFont(size=13),
             text_color="#64748b"
         )
-        desc_label.grid(row=1, column=0, sticky="w", pady=(0, 20), padx=20)
+        desc_label.pack(anchor="w", pady=(0, 20), padx=20)
         
         # Search bar
-        search_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        search_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
+        search_frame = ctk.CTkFrame(scrollable_content, fg_color="transparent")
+        search_frame.pack(fill="x", padx=20, pady=(0, 10))
         search_frame.grid_columnconfigure(1, weight=1)
         
         search_label = ctk.CTkLabel(
@@ -219,8 +220,8 @@ class WhatsAppManagement(ctk.CTkFrame):
         self.search_entry.bind("<KeyRelease>", lambda e: self.refresh_member_list())
         
         # Select all/none buttons
-        select_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        select_frame.grid(row=3, column=0, sticky="w", padx=20, pady=(0, 10))
+        select_frame = ctk.CTkFrame(scrollable_content, fg_color="transparent")
+        select_frame.pack(anchor="w", padx=20, pady=(0, 10))
         
         select_all_btn = ctk.CTkButton(
             select_frame,
@@ -246,44 +247,43 @@ class WhatsAppManagement(ctk.CTkFrame):
         )
         select_none_btn.pack(side="left")
         
-        # Members list frame - scrollable with fixed height
-        list_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        list_frame.grid(row=4, column=0, sticky="nsew", padx=20, pady=(0, 10))
-        list_frame.grid_rowconfigure(0, weight=1)
-        list_frame.grid_columnconfigure(0, weight=1)
+        # Members list frame
+        list_frame = ctk.CTkFrame(scrollable_content, fg_color="transparent")
+        list_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         
-        # Scrollable frame for members
+        # Scrollable frame for members (nested scrollable for member list)
         scrollable_frame = ctk.CTkScrollableFrame(
             list_frame,
             fg_color="white",
             border_width=1,
-            border_color="#e2e8f0"
+            border_color="#e2e8f0",
+            height=200  # Fixed height for member list
         )
-        scrollable_frame.grid(row=0, column=0, sticky="nsew")
+        scrollable_frame.pack(fill="both", expand=True)
         
         self.custom_list_frame = scrollable_frame
         
         # Message input label
         message_label = ctk.CTkLabel(
-            parent,
+            scrollable_content,
             text="Custom Message:",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#1e293b"
         )
-        message_label.grid(row=5, column=0, sticky="w", pady=(10, 5), padx=20)
+        message_label.pack(anchor="w", pady=(10, 5), padx=20)
         
         # Message text box
         self.message_text = ctk.CTkTextbox(
-            parent,
+            scrollable_content,
             height=100,
             font=ctk.CTkFont(size=13),
             border_width=1,
             border_color="#e2e8f0"
         )
-        self.message_text.grid(row=6, column=0, sticky="ew", padx=20, pady=(0, 15))
+        self.message_text.pack(fill="x", padx=20, pady=(0, 20))
         self.message_text.insert("1.0", "Hello! This is a message from Luwang Fitness. ")
         
-        # Send button - always visible at bottom
+        # Send button - always visible at bottom (outside scrollable area)
         send_custom_btn = ctk.CTkButton(
             parent,
             text="Send to Selected Members",
@@ -293,7 +293,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             hover_color="#1d4ed8",
             command=self.send_custom_messages
         )
-        send_custom_btn.grid(row=7, column=0, sticky="ew", pady=(0, 20), padx=20)
+        send_custom_btn.grid(row=1, column=0, sticky="ew", pady=(0, 20), padx=20)
     
     def get_members_due_in_one_day(self):
         """Get members whose fees are due in exactly 1 day"""
