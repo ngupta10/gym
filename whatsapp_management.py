@@ -66,9 +66,12 @@ class WhatsAppManagement(ctk.CTkFrame):
         # )
         # method_label.pack(side="left", padx=(0, 20))
         
-        # Main container with two sections
+        # Main container with two sections - using grid for better control
         main_container = ctk.CTkFrame(self, fg_color="transparent")
         main_container.pack(fill="both", expand=True, padx=35, pady=(0, 35))
+        main_container.grid_rowconfigure(0, weight=1)
+        main_container.grid_columnconfigure(0, weight=1)
+        main_container.grid_columnconfigure(1, weight=1)
         
         # Left section - Automated Reminders
         left_section = ctk.CTkFrame(
@@ -78,7 +81,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             border_color="#e2e8f0",
             corner_radius=8
         )
-        left_section.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        left_section.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
         # Right section - Custom Messages
         right_section = ctk.CTkFrame(
@@ -88,7 +91,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             border_color="#e2e8f0",
             corner_radius=8
         )
-        right_section.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        right_section.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         
         # Setup left section (Automated Reminders)
         self.setup_automated_section(left_section)
@@ -172,7 +175,7 @@ class WhatsAppManagement(ctk.CTkFrame):
         parent.grid_rowconfigure(4, weight=1)  # List row (expandable)
         parent.grid_rowconfigure(5, weight=0)  # Message label row
         parent.grid_rowconfigure(6, weight=0)  # Message text row
-        parent.grid_rowconfigure(7, weight=0)  # Button row (always visible)
+        parent.grid_rowconfigure(7, weight=0)  # Button row (always visible, fixed at bottom)
         parent.grid_columnconfigure(0, weight=1)
         
         # Section title

@@ -38,9 +38,18 @@ class FeeManagement(ctk.CTkFrame):
             corner_radius=8
         )
         form_frame.pack(side="left", fill="both", padx=(0, 7), expand=True)
+        form_frame.grid_rowconfigure(0, weight=1)
+        form_frame.grid_columnconfigure(0, weight=1)
+        
+        # Scrollable frame for the form
+        scrollable_form = ctk.CTkScrollableFrame(
+            form_frame,
+            fg_color="transparent"
+        )
+        scrollable_form.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         
         form_title = ctk.CTkLabel(
-            form_frame,
+            scrollable_form,
             text="Record Payment",
             font=ctk.CTkFont(size=17, weight="bold"),
             text_color="#1a1a2e"
@@ -49,7 +58,7 @@ class FeeManagement(ctk.CTkFrame):
         
         # Member search
         member_label = ctk.CTkLabel(
-            form_frame,
+            scrollable_form,
             text="Search Member (Name/ID/Phone/Email) *",
             font=ctk.CTkFont(size=14),
             text_color="#1a1a2e"
@@ -57,7 +66,7 @@ class FeeManagement(ctk.CTkFrame):
         member_label.pack(anchor="w", padx=20, pady=(10, 5))
         
         self.member_search = ctk.CTkEntry(
-            form_frame,
+            scrollable_form,
             height=35,
             font=ctk.CTkFont(size=14),
             border_width=1,
@@ -69,7 +78,7 @@ class FeeManagement(ctk.CTkFrame):
         
         # Member selection dropdown (filtered results)
         self.member_combo = ctk.CTkComboBox(
-            form_frame,
+            scrollable_form,
             height=35,
             font=ctk.CTkFont(size=14),
             border_width=1,
@@ -81,7 +90,7 @@ class FeeManagement(ctk.CTkFrame):
         
         # Amount
         amount_label = ctk.CTkLabel(
-            form_frame,
+            scrollable_form,
             text="Amount (₹) *",
             font=ctk.CTkFont(size=14),
             text_color="#1a1a2e"
@@ -89,7 +98,7 @@ class FeeManagement(ctk.CTkFrame):
         amount_label.pack(anchor="w", padx=20, pady=(10, 5))
         
         self.amount_input = ctk.CTkEntry(
-            form_frame,
+            scrollable_form,
             height=35,
             font=ctk.CTkFont(size=14),
             border_width=1,
@@ -99,7 +108,7 @@ class FeeManagement(ctk.CTkFrame):
         
         # Payment date
         date_label = ctk.CTkLabel(
-            form_frame,
+            scrollable_form,
             text="Payment Date *",
             font=ctk.CTkFont(size=14),
             text_color="#1a1a2e"
@@ -107,7 +116,7 @@ class FeeManagement(ctk.CTkFrame):
         date_label.pack(anchor="w", padx=20, pady=(10, 5))
         
         self.payment_date = ctk.CTkEntry(
-            form_frame,
+            scrollable_form,
             height=35,
             font=ctk.CTkFont(size=14),
             border_width=1,
@@ -119,7 +128,7 @@ class FeeManagement(ctk.CTkFrame):
         
         # Notes
         notes_label = ctk.CTkLabel(
-            form_frame,
+            scrollable_form,
             text="Notes",
             font=ctk.CTkFont(size=14),
             text_color="#1a1a2e"
@@ -127,7 +136,7 @@ class FeeManagement(ctk.CTkFrame):
         notes_label.pack(anchor="w", padx=20, pady=(10, 5))
         
         self.notes_input = ctk.CTkEntry(
-            form_frame,
+            scrollable_form,
             height=35,
             font=ctk.CTkFont(size=14),
             border_width=1,
@@ -136,7 +145,7 @@ class FeeManagement(ctk.CTkFrame):
         self.notes_input.pack(fill="x", padx=20, pady=(0, 10))
         
         # Buttons
-        button_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        button_frame = ctk.CTkFrame(scrollable_form, fg_color="transparent")
         button_frame.pack(fill="x", padx=20, pady=(10, 20))
         
         record_btn = ctk.CTkButton(

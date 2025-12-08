@@ -274,10 +274,10 @@ class MemberManagement(ctk.CTkFrame):
                        relief="solid",
                        font=('Arial', 13))
         
-        # Excel-like header styling (blue header like Excel)
+        # Header styling with black text for visibility
         style.configure("Treeview.Heading", 
-                       background="#4472C4",  # Excel blue header
-                       foreground="white",
+                       background="#f8fafc",  # Light background
+                       foreground="black",  # Black text for visibility
                        borderwidth=1,
                        relief="solid",
                        font=('Arial', 14, 'bold'),
@@ -285,7 +285,7 @@ class MemberManagement(ctk.CTkFrame):
         
         # Ensure header cells have borders
         style.map("Treeview.Heading",
-                 background=[("active", "#4472C4")],
+                 background=[("active", "#e2e8f0")],  # Slightly darker on hover
                  relief=[("pressed", "sunken"), ("!pressed", "solid")])
         
         # Selected row styling (light blue like Excel)
@@ -349,64 +349,83 @@ class MemberManagement(ctk.CTkFrame):
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
         
-        # Action buttons (always visible at bottom)
+        # Action buttons (always visible at bottom) - with horizontal scroll
         action_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
         action_frame.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 20))
+        action_frame.grid_columnconfigure(0, weight=1)
+        
+        # Scrollable frame for buttons
+        scrollable_button_frame = ctk.CTkScrollableFrame(
+            action_frame,
+            orientation="horizontal",
+            fg_color="transparent"
+        )
+        scrollable_button_frame.grid(row=0, column=0, sticky="ew")
+        scrollable_button_frame.grid_columnconfigure(0, weight=1)
+        
+        # Button container inside scrollable frame
+        button_container = ctk.CTkFrame(scrollable_button_frame, fg_color="transparent")
+        button_container.pack(fill="x", expand=True)
         
         save_btn = ctk.CTkButton(
-            action_frame,
+            button_container,
             text="Save Changes",
             command=self.save_changes,
             fg_color="#10b981",
             hover_color="#059669",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=35
+            height=35,
+            width=120
         )
-        save_btn.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        save_btn.pack(side="left", padx=(0, 10))
         
         view_btn = ctk.CTkButton(
-            action_frame,
+            button_container,
             text="View Details",
             command=self.view_member_details,
             fg_color="#3b82f6",
             hover_color="#2563eb",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=35
+            height=35,
+            width=120
         )
-        view_btn.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        view_btn.pack(side="left", padx=(0, 10))
         
         toggle_status_btn = ctk.CTkButton(
-            action_frame,
+            button_container,
             text="Toggle Status",
             command=self.toggle_member_status,
             fg_color="#f59e0b",
             hover_color="#d97706",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=35
+            height=35,
+            width=120
         )
-        toggle_status_btn.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        toggle_status_btn.pack(side="left", padx=(0, 10))
         
         remove_btn = ctk.CTkButton(
-            action_frame,
+            button_container,
             text="Remove Member",
             command=self.remove_member,
             fg_color="#ef4444",
             hover_color="#dc2626",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=35
+            height=35,
+            width=130
         )
-        remove_btn.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        remove_btn.pack(side="left", padx=(0, 10))
         
         refresh_btn = ctk.CTkButton(
-            action_frame,
+            button_container,
             text="Refresh List",
             command=self.refresh_member_list,
             fg_color="#64748b",
             hover_color="#475569",
             font=ctk.CTkFont(size=13),
-            height=35
+            height=35,
+            width=120
         )
-        refresh_btn.pack(side="left", fill="x", expand=True)
+        refresh_btn.pack(side="left")
     
     def on_membership_type_change(self, value=None):
         """Show/hide trainer selection based on membership type"""
