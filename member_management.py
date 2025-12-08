@@ -185,6 +185,13 @@ class MemberManagement(ctk.CTkFrame):
             corner_radius=8
         )
         list_frame.grid(row=0, column=1, sticky="nsew", padx=(7, 0), pady=0)
+        # Configure grid for proper layout
+        list_frame.grid_rowconfigure(0, weight=0)  # Title row (fixed)
+        list_frame.grid_rowconfigure(1, weight=0)  # Headers info row (fixed)
+        list_frame.grid_rowconfigure(2, weight=0)  # Search row (fixed)
+        list_frame.grid_rowconfigure(3, weight=1)  # Table row (expandable)
+        list_frame.grid_rowconfigure(4, weight=0)  # Action buttons row (fixed, always visible)
+        list_frame.grid_columnconfigure(0, weight=1)
         
         list_title = ctk.CTkLabel(
             list_frame,
@@ -192,7 +199,7 @@ class MemberManagement(ctk.CTkFrame):
             font=ctk.CTkFont(size=17, weight="bold"),
             text_color="#1a1a2e"
         )
-        list_title.pack(pady=(20, 10))
+        list_title.grid(row=0, column=0, sticky="w", pady=(20, 10), padx=20)
         
         # Column headers info label
         headers_info = ctk.CTkLabel(
@@ -201,11 +208,11 @@ class MemberManagement(ctk.CTkFrame):
             font=ctk.CTkFont(size=12),
             text_color="#64748b"
         )
-        headers_info.pack(pady=(0, 10), padx=20)
+        headers_info.grid(row=1, column=0, sticky="w", pady=(0, 10), padx=20)
         
         # Search and filter frame
         search_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
-        search_frame.pack(fill="x", padx=20, pady=(0, 10))
+        search_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
         
         search_label = ctk.CTkLabel(
             search_frame,
@@ -249,7 +256,7 @@ class MemberManagement(ctk.CTkFrame):
         
         # Table
         table_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        table_frame.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 10))
         
         columns = ('ID', 'Name', 'Email', 'Phone', 'Join Date', 'Type', 'Frequency', 'Trainer', 'Fee', 'Next Payment', 'Status')
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
@@ -342,9 +349,9 @@ class MemberManagement(ctk.CTkFrame):
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
         
-        # Action buttons
+        # Action buttons (always visible at bottom)
         action_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
-        action_frame.pack(fill="x", padx=20, pady=(0, 20))
+        action_frame.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 20))
         
         save_btn = ctk.CTkButton(
             action_frame,

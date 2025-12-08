@@ -98,6 +98,14 @@ class WhatsAppManagement(ctk.CTkFrame):
     
     def setup_automated_section(self, parent):
         """Setup automated payment reminder section"""
+        # Configure parent to use grid for better control
+        parent.grid_rowconfigure(0, weight=0)  # Title row
+        parent.grid_rowconfigure(1, weight=0)  # Description row
+        parent.grid_rowconfigure(2, weight=1)  # List row (expandable)
+        parent.grid_rowconfigure(3, weight=0)  # Info label row
+        parent.grid_rowconfigure(4, weight=0)  # Button row (always visible)
+        parent.grid_columnconfigure(0, weight=1)
+        
         # Section title
         section_title = ctk.CTkLabel(
             parent,
@@ -105,7 +113,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#1e293b"
         )
-        section_title.pack(pady=(20, 10), padx=20, anchor="w")
+        section_title.grid(row=0, column=0, sticky="w", pady=(20, 10), padx=20)
         
         # Description
         desc_label = ctk.CTkLabel(
@@ -114,11 +122,13 @@ class WhatsAppManagement(ctk.CTkFrame):
             font=ctk.CTkFont(size=13),
             text_color="#64748b"
         )
-        desc_label.pack(pady=(0, 20), padx=20, anchor="w")
+        desc_label.grid(row=1, column=0, sticky="w", pady=(0, 20), padx=20)
         
         # Members list frame
         list_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        list_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        list_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 10))
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
         
         # Scrollable frame for members
         scrollable_frame = ctk.CTkScrollableFrame(
@@ -127,7 +137,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             border_width=1,
             border_color="#e2e8f0"
         )
-        scrollable_frame.pack(fill="both", expand=True)
+        scrollable_frame.grid(row=0, column=0, sticky="nsew")
         
         self.automated_list_frame = scrollable_frame
         
@@ -138,9 +148,9 @@ class WhatsAppManagement(ctk.CTkFrame):
             font=ctk.CTkFont(size=13),
             text_color="#64748b"
         )
-        self.automated_info_label.pack(pady=(10, 0), padx=20)
+        self.automated_info_label.grid(row=3, column=0, sticky="w", pady=(10, 0), padx=20)
         
-        # Send button
+        # Send button (always visible at bottom)
         send_auto_btn = ctk.CTkButton(
             parent,
             text="Send Reminders to All",
@@ -150,7 +160,7 @@ class WhatsAppManagement(ctk.CTkFrame):
             hover_color="#1d4ed8",
             command=self.send_automated_reminders
         )
-        send_auto_btn.pack(pady=(20, 20), padx=20, fill="x")
+        send_auto_btn.grid(row=4, column=0, sticky="ew", pady=(20, 20), padx=20)
     
     def setup_custom_section(self, parent):
         """Setup custom message section"""
