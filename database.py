@@ -139,9 +139,9 @@ class Database:
         """Get all members"""
         cursor = self.conn.cursor()
         if active_only:
-            cursor.execute("SELECT * FROM members WHERE status = 'active' ORDER BY name")
+            cursor.execute("SELECT * FROM members WHERE status = 'active' ORDER BY id ASC")
         else:
-            cursor.execute("SELECT * FROM members ORDER BY name")
+            cursor.execute("SELECT * FROM members ORDER BY id ASC")
         return [dict(row) for row in cursor.fetchall()]
     
     def get_member(self, member_id: int) -> Optional[Dict]:
@@ -357,15 +357,26 @@ class Database:
     # Helper methods
     def _calculate_next_payment_date(self, last_date: date, frequency: str) -> date:
         """Calculate next payment date based on frequency"""
+        def _safe_date(year: int, month: int, day: int) -> date:
+            """Create a date, adjusting day if it doesn't exist in the target month"""
+            try:
+                return date(year, month, day)
+            except ValueError:
+                # Day doesn't exist in target month (e.g., Jan 31 → Feb 31)
+                # Use the last day of the target month instead
+                from calendar import monthrange
+                last_day = monthrange(year, month)[1]
+                return date(year, month, last_day)
+        
         if frequency == "Daily":
             # Add 1 day
             return date.fromordinal(last_date.toordinal() + 1)
         elif frequency == "Monthly":
             # Add 1 month
             if last_date.month == 12:
-                return date(last_date.year + 1, 1, last_date.day)
+                return _safe_date(last_date.year + 1, 1, last_date.day)
             else:
-                return date(last_date.year, last_date.month + 1, last_date.day)
+                return _safe_date(last_date.year, last_date.month + 1, last_date.day)
         elif frequency == "Quarterly":
             # Add 3 months
             month = last_date.month + 3
@@ -373,9 +384,9 @@ class Database:
             if month > 12:
                 month -= 12
                 year += 1
-            return date(year, month, last_date.day)
+            return _safe_date(year, month, last_date.day)
         elif frequency == "Yearly":
-            return date(last_date.year + 1, last_date.month, last_date.day)
+            return _safe_date(last_date.year + 1, last_date.month, last_date.day)
         else:  # Default to daily
             return date.fromordinal(last_date.toordinal() + 1)
     

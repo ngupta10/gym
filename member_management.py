@@ -15,6 +15,7 @@ class MemberManagement(ctk.CTkFrame):
     def __init__(self, parent, db):
         super().__init__(parent, fg_color="#ffffff")
         self.db = db
+        self.selected_members = set()  # Track selected member IDs
         self.setup_ui()
         self.refresh_member_list()
     
@@ -204,7 +205,7 @@ class MemberManagement(ctk.CTkFrame):
         # Column headers info label
         headers_info = ctk.CTkLabel(
             list_frame,
-            text="Column Order: ID | Name | Email | Phone | Join Date | Type | Frequency | Trainer | Fee | Next Payment | Status",
+            text="Column Order: Select | ID | Name | Email | Phone | Join Date | Type | Frequency | Trainer | Fee | Next Payment | Status",
             font=ctk.CTkFont(size=12),
             text_color="#64748b"
         )
@@ -252,13 +253,38 @@ class MemberManagement(ctk.CTkFrame):
             command=self.on_filter_change
         )
         self.status_filter.set("Active Only")
-        self.status_filter.pack(side="left", padx=(0, 0))
+        self.status_filter.pack(side="left", padx=(0, 10))
+        
+        # Select All/Deselect All buttons
+        select_all_btn = ctk.CTkButton(
+            search_frame,
+            text="Select All",
+            command=self.select_all_members,
+            fg_color="#64748b",
+            hover_color="#475569",
+            font=ctk.CTkFont(size=12),
+            height=30,
+            width=90
+        )
+        select_all_btn.pack(side="left", padx=(0, 5))
+        
+        deselect_all_btn = ctk.CTkButton(
+            search_frame,
+            text="Deselect All",
+            command=self.deselect_all_members,
+            fg_color="#64748b",
+            hover_color="#475569",
+            font=ctk.CTkFont(size=12),
+            height=30,
+            width=90
+        )
+        deselect_all_btn.pack(side="left", padx=(0, 0))
         
         # Table
         table_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
         table_frame.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 10))
         
-        columns = ('ID', 'Name', 'Email', 'Phone', 'Join Date', 'Type', 'Frequency', 'Trainer', 'Fee', 'Next Payment', 'Status')
+        columns = ('Select', 'ID', 'Name', 'Email', 'Phone', 'Join Date', 'Type', 'Frequency', 'Trainer', 'Fee', 'Next Payment', 'Status')
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
         
         # Configure style for Excel-like appearance
@@ -299,6 +325,7 @@ class MemberManagement(ctk.CTkFrame):
         
         # Excel-like column widths and alignment
         column_widths = {
+            'Select': 60,
             'ID': 50,
             'Name': 150,
             'Email': 180,
@@ -317,6 +344,9 @@ class MemberManagement(ctk.CTkFrame):
             self.tree.heading(col, text=col, anchor='center')
             self.tree.column(col, width=column_widths.get(col, 100), anchor='w', minwidth=50)
         
+        # Bind click on Select column to toggle selection
+        self.tree.bind("<Button-1>", self.on_tree_click)
+        
         # Ensure headers are visible - explicitly set show parameter
         self.tree.configure(show='headings')
         
@@ -328,7 +358,7 @@ class MemberManagement(ctk.CTkFrame):
         except:
             pass
         
-        # Make table editable
+        # Make table editable (but not on Select column)
         self.tree.bind("<Double-1>", self.on_double_click)
         self.editing_item = None
         
@@ -393,7 +423,7 @@ class MemberManagement(ctk.CTkFrame):
         
         toggle_status_btn = ctk.CTkButton(
             button_container,
-            text="Toggle Status",
+            text="Toggle Status (Bulk)",
             command=self.toggle_member_status,
             fg_color="#f59e0b",
             hover_color="#d97706",
@@ -535,7 +565,8 @@ class MemberManagement(ctk.CTkFrame):
     
     def refresh_member_list(self, search_term=""):
         """Refresh the member list"""
-        # Clear existing items
+        # Clear existing items and preserve selected members
+        # (selected_members set persists across refreshes)
         for item in self.tree.get_children():
             self.tree.delete(item)
         
@@ -576,19 +607,24 @@ class MemberManagement(ctk.CTkFrame):
             
             join_date = member.get('join_date', 'N/A')
             
+            # Check if member is selected
+            is_selected = member['id'] in self.selected_members
+            select_text = "☑" if is_selected else "☐"
+            
             self.tree.insert('', 'end', values=(
-                member['id'],
-                member['name'],
-                member.get('email', ''),
-                member.get('phone', ''),
-                join_date,
-                member['membership_type'],
-                member.get('payment_frequency', 'Monthly'),
-                trainer_name,
-                f"₹{member['fee_amount']:.2f}",
-                next_payment,
-                status
-            ), tags=(tag, member['id']))
+                select_text,  # Select column (index 0)
+                member['id'],  # ID column (index 1)
+                member['name'],  # Name column (index 2)
+                member.get('email', ''),  # Email column (index 3)
+                member.get('phone', ''),  # Phone column (index 4)
+                join_date,  # Join Date column (index 5)
+                member['membership_type'],  # Type column (index 6)
+                member.get('payment_frequency', 'Monthly'),  # Frequency column (index 7)
+                trainer_name,  # Trainer column (index 8)
+                f"₹{member['fee_amount']:.2f}",  # Fee column (index 9)
+                next_payment,  # Next Payment column (index 10)
+                status  # Status column (index 11)
+            ), tags=(tag, str(member['id'])))
     
     def on_search(self, event=None):
         """Handle search input"""
@@ -614,18 +650,22 @@ class MemberManagement(ctk.CTkFrame):
             
             column = self.tree.identify_column(event.x)
             column_index = int(column.replace('#', '')) - 1
-            columns = ('ID', 'Name', 'Email', 'Phone', 'Join Date', 'Type', 'Frequency', 'Trainer', 'Fee', 'Next Payment', 'Status')
+            columns = ('Select', 'ID', 'Name', 'Email', 'Phone', 'Join Date', 'Type', 'Frequency', 'Trainer', 'Fee', 'Next Payment', 'Status')
+            
+            # Don't allow editing Select column (use checkbox click instead)
+            if column_index == 0:  # Select column
+                return
             
             # Don't allow editing ID column
-            if column_index == 0:  # ID column
+            if column_index == 1:  # ID column
                 return
             
             # Don't allow editing Status column (use Toggle Status button instead)
-            if column_index == 10:  # Status column (last column, index 10)
+            if column_index == 11:  # Status column (last column, index 11)
                 return
             
             # Don't allow editing Next Payment column (it's calculated)
-            if column_index == 9:  # Next Payment column
+            if column_index == 10:  # Next Payment column
                 messagebox.showinfo("Info", "Next Payment date is automatically calculated. Change Join Date, Type, or Frequency to update it.")
                 return
             
@@ -645,7 +685,7 @@ class MemberManagement(ctk.CTkFrame):
                 return
             
             # Check if this is a dropdown column (Type or Frequency)
-            if column_index == 5:  # Type (Membership Type) column
+            if column_index == 6:  # Type (Membership Type) column (now index 6 after Select column)
                 # Use Combobox for membership type
                 from tkinter import ttk as ttk_widgets
                 edit_combo = ttk_widgets.Combobox(self.tree, 
@@ -678,7 +718,7 @@ class MemberManagement(ctk.CTkFrame):
                 self.tree.after_idle(lambda: edit_combo.focus_set())
                 edit_combo.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
                 
-            elif column_index == 6:  # Frequency (Payment Frequency) column
+            elif column_index == 7:  # Frequency (Payment Frequency) column (now index 7 after Select column)
                 # Use Combobox for payment frequency
                 from tkinter import ttk as ttk_widgets
                 edit_combo = ttk_widgets.Combobox(self.tree, 
@@ -711,7 +751,7 @@ class MemberManagement(ctk.CTkFrame):
                 self.tree.after_idle(lambda: edit_combo.focus_set())
                 edit_combo.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
                 
-            elif column_index == 7:  # Trainer column
+            elif column_index == 8:  # Trainer column (now index 8 after Select column)
                 # Use Combobox for trainer selection
                 from tkinter import ttk as ttk_widgets
                 trainers = self.db.get_trainers()
@@ -757,7 +797,7 @@ class MemberManagement(ctk.CTkFrame):
                     
                     # Update trainer_id in database
                     try:
-                        member_id = int(current_values[0])  # ID is first column
+                        member_id = int(current_values[1])  # ID is second column (after Select)
                         self.db.update_member(member_id, trainer_id=trainer_id_value)
                     except Exception as e:
                         messagebox.showerror("Error", f"Failed to update trainer: {str(e)}")
@@ -791,7 +831,7 @@ class MemberManagement(ctk.CTkFrame):
                     edit_entry.destroy()
                     self._editing_item = None  # Reset editing flag
                     # If join_date changed, recalculate payment date
-                    if column_index == 4:  # Join Date column
+                    if column_index == 5:  # Join Date column (now index 5 after Select column)
                         self._recalculate_payment_date_for_item(item)
                 
                 def cancel_edit(event=None):
@@ -807,21 +847,21 @@ class MemberManagement(ctk.CTkFrame):
     def _recalculate_payment_date_for_item(self, item):
         """Recalculate next payment date for a table item based on current values"""
         values = list(self.tree.item(item, 'values'))
-        if len(values) < 11:
+        if len(values) < 12:
             return
         
         try:
-            member_id = int(values[0])  # ID is first column
-            join_date_str = values[4] if values[4] and values[4] != 'N/A' else None
-            payment_frequency = values[6] if len(values) > 6 else 'Monthly'  # Frequency is now column 6
+            member_id = int(values[1])  # ID is second column (after Select)
+            join_date_str = values[5] if values[5] and values[5] != 'N/A' else None
+            payment_frequency = values[7] if len(values) > 7 else 'Monthly'  # Frequency is now column 7
             
             if join_date_str:
                 try:
                     join_date = datetime.strptime(join_date_str, '%Y-%m-%d').date()
                     # Recalculate next payment date
                     next_payment = self.db._calculate_next_payment_date(join_date, payment_frequency)
-                    # Update the Next Payment column (index 9, after Fee column)
-                    values[9] = next_payment.strftime('%Y-%m-%d')
+                    # Update the Next Payment column (index 10, after Fee column)
+                    values[10] = next_payment.strftime('%Y-%m-%d')
                     self.tree.item(item, values=tuple(values))
                 except ValueError:
                     pass  # Invalid date format, skip
@@ -837,9 +877,9 @@ class MemberManagement(ctk.CTkFrame):
         updated_count = 0
         for item in self.tree.get_children():
             values = self.tree.item(item, 'values')
-            if len(values) >= 11:  # 11 columns: ID, Name, Email, Phone, Join Date, Type, Frequency, Trainer, Fee, Next Payment, Status
+            if len(values) >= 12:  # 12 columns: Select, ID, Name, Email, Phone, Join Date, Type, Frequency, Trainer, Fee, Next Payment, Status
                 try:
-                    member_id = int(values[0])  # ID is first column
+                    member_id = int(values[1])  # ID is second column (after Select)
                     
                     # Get current member data from database for comparison
                     current_member = self.db.get_member(member_id)
@@ -847,19 +887,19 @@ class MemberManagement(ctk.CTkFrame):
                         continue
                     
                     updates = {
-                        'name': values[1],
-                        'email': values[2] if values[2] else None,
-                        'phone': values[3] if values[3] else None,
-                        'join_date': values[4] if values[4] and values[4] != 'N/A' else None,
-                        'membership_type': values[5],
-                        'payment_frequency': values[6] if len(values) > 6 else 'Monthly',  # Frequency column
+                        'name': values[2],
+                        'email': values[3] if values[3] else None,
+                        'phone': values[4] if values[4] else None,
+                        'join_date': values[5] if values[5] and values[5] != 'N/A' else None,
+                        'membership_type': values[6],
+                        'payment_frequency': values[7] if len(values) > 7 else 'Monthly',  # Frequency column
                     }
                     
-                    # Handle trainer (column 7) - trainer_id is updated separately if changed via dropdown
+                    # Handle trainer (column 8) - trainer_id is updated separately if changed via dropdown
                     # Trainer name is just for display, actual trainer_id update happens in dropdown handler
                     
-                    # Parse fee amount (now column 8)
-                    fee_str = values[8].replace('₹', '').replace(',', '').strip()
+                    # Parse fee amount (now column 9)
+                    fee_str = values[9].replace('₹', '').replace(',', '').strip()
                     try:
                         updates['fee_amount'] = float(fee_str)
                     except:
@@ -925,7 +965,7 @@ class MemberManagement(ctk.CTkFrame):
             return
         
         item = self.tree.item(selection[0])
-        member_id = int(item['values'][0])  # ID is first column
+        member_id = int(item['values'][1])  # ID is second column (after Select)
         
         # Get member details from database
         members = self.db.get_all_members(active_only=False)
@@ -947,35 +987,148 @@ Status: {member.get('status', 'active').title()}"""
             
             messagebox.showinfo("Member Details", details)
     
+    def on_tree_click(self, event):
+        """Handle clicks on the treeview, especially the Select column"""
+        region = self.tree.identify_region(event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            item = self.tree.identify_row(event.y)
+            
+            if item and column == "#1":  # Select column (first data column, index 0)
+                values = list(self.tree.item(item, 'values'))
+                # Verify we have the right structure
+                if len(values) < 2:
+                    return
+                # Try to get ID from index 1, but handle if it's not there
+                try:
+                    # ID should be at index 1 (after Select at index 0)
+                    member_id = int(values[1])
+                except (ValueError, IndexError):
+                    # Fallback: try to find ID in the values
+                    # If values[1] is a name, then values[0] might be ID
+                    try:
+                        member_id = int(values[0])
+                        # If this works, it means Select column wasn't included
+                        # So we need to insert it
+                        values.insert(0, "☐")
+                    except (ValueError, IndexError):
+                        return
+                
+                # Toggle selection
+                if member_id in self.selected_members:
+                    self.selected_members.remove(member_id)
+                    values[0] = "☐"
+                else:
+                    self.selected_members.add(member_id)
+                    values[0] = "☑"
+                
+                # Update the row
+                self.tree.item(item, values=values)
+    
+    def select_all_members(self):
+        """Select all visible members"""
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, 'values'))
+            if len(values) < 2:
+                continue
+            # Check if first value is Select checkbox (☐ or ☑)
+            if values[0] in ("☐", "☑"):
+                # Select column is present, ID is at index 1
+                try:
+                    member_id = int(values[1])
+                except (ValueError, IndexError):
+                    continue
+            else:
+                # Select column is missing, ID is at index 0
+                try:
+                    member_id = int(values[0])
+                    values.insert(0, "☑")  # Add Select column
+                except (ValueError, IndexError):
+                    continue
+            self.selected_members.add(member_id)
+            values[0] = "☑"
+            self.tree.item(item, values=values)
+    
+    def deselect_all_members(self):
+        """Deselect all visible members"""
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, 'values'))
+            if len(values) < 2:
+                continue
+            # Check if first value is Select checkbox (☐ or ☑)
+            if values[0] in ("☐", "☑"):
+                # Select column is present, ID is at index 1
+                try:
+                    member_id = int(values[1])
+                except (ValueError, IndexError):
+                    continue
+            else:
+                # Select column is missing, ID is at index 0
+                try:
+                    member_id = int(values[0])
+                    values.insert(0, "☐")  # Add Select column
+                except (ValueError, IndexError):
+                    continue
+            self.selected_members.discard(member_id)
+            values[0] = "☐"
+            self.tree.item(item, values=values)
+    
     def toggle_member_status(self):
-        """Toggle member active/inactive status"""
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showinfo("Info", "Please select a member to toggle status.")
+        """Toggle member active/inactive status for selected members"""
+        if not self.selected_members:
+            messagebox.showinfo("Info", "Please select one or more members to toggle status.")
             return
         
-        item = self.tree.item(selection[0])
-        member_id = int(item['values'][0])  # ID is first column
-        member_name = item['values'][1]  # Name is second column
+        # Get all members from database
+        all_members = self.db.get_all_members(active_only=False)
+        member_dict = {m['id']: m for m in all_members}
         
-        # Get current status from database
-        members = self.db.get_all_members(active_only=False)
-        member = next((m for m in members if m['id'] == member_id), None)
+        # Process each selected member
+        success_count = 0
+        failed_count = 0
+        activated_count = 0
+        deactivated_count = 0
         
-        if not member:
-            messagebox.showerror("Error", "Member not found!")
-            return
+        for member_id in list(self.selected_members):
+            member = member_dict.get(member_id)
+            if not member:
+                failed_count += 1
+                continue
+            
+            current_status_db = member.get('status', 'active').lower()
+            new_status = 'inactive' if current_status_db == 'active' else 'active'
+            
+            try:
+                self.db.update_member(member_id, status=new_status)
+                success_count += 1
+                if new_status == 'active':
+                    activated_count += 1
+                else:
+                    deactivated_count += 1
+            except Exception as e:
+                failed_count += 1
+                print(f"Failed to toggle status for member {member_id}: {str(e)}")
         
-        current_status_db = member.get('status', 'active').lower()
-        new_status = 'inactive' if current_status_db == 'active' else 'active'
+        # Show result message
+        if success_count > 0:
+            status_parts = []
+            if activated_count > 0:
+                status_parts.append(f"{activated_count} activated")
+            if deactivated_count > 0:
+                status_parts.append(f"{deactivated_count} deactivated")
+            
+            message = f"Successfully toggled status for {success_count} member(s): {', '.join(status_parts)}"
+            if failed_count > 0:
+                message += f"\n{failed_count} member(s) failed to update."
+            messagebox.showinfo("Success", message)
+        else:
+            messagebox.showerror("Error", f"Failed to toggle status for all {failed_count} member(s).")
         
-        try:
-            self.db.update_member(member_id, status=new_status)
-            status_text = "activated" if new_status == 'active' else "deactivated"
-            messagebox.showinfo("Success", f"Member '{member_name}' {status_text} successfully!")
-            self.refresh_member_list(self.search_entry.get())
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to toggle status: {str(e)}")
+        # Clear all selections after operation
+        self.selected_members.clear()
+        
+        # Refresh the list (this will also update checkboxes to show deselected state)
+        self.refresh_member_list(self.search_entry.get())
     
     def remove_member(self):
         """Remove/deactivate selected member"""
@@ -983,19 +1136,47 @@ Status: {member.get('status', 'active').title()}"""
         if not self.verify_password():
             return
         
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showinfo("Info", "Please select a member to remove.")
-            return
+        # Use selected_members if available, otherwise use tree selection
+        if self.selected_members:
+            member_ids = list(self.selected_members)
+        else:
+            selection = self.tree.selection()
+            if not selection:
+                messagebox.showinfo("Info", "Please select a member to remove.")
+                return
+            item = self.tree.item(selection[0])
+            member_ids = [int(item['values'][1])]  # ID is in second column (index 1)
         
-        item = self.tree.item(selection[0])
-        member_id = int(item['values'][0])  # ID is first column
-        member_name = item['values'][1]  # Name is second column
+        # Get member names
+        all_members = self.db.get_all_members(active_only=False)
+        member_dict = {m['id']: m for m in all_members}
         
-        if messagebox.askyesno("Confirm", f"Are you sure you want to remove '{member_name}'?"):
-            try:
-                self.db.remove_member(member_id)
-                messagebox.showinfo("Success", f"Member '{member_name}' removed successfully!")
+        if len(member_ids) == 1:
+            member_id = member_ids[0]
+            member_name = member_dict.get(member_id, {}).get('name', f'ID {member_id}')
+            if messagebox.askyesno("Confirm", f"Are you sure you want to remove '{member_name}'?"):
+                try:
+                    self.db.remove_member(member_id)
+                    self.selected_members.discard(member_id)
+                    messagebox.showinfo("Success", f"Member '{member_name}' removed successfully!")
+                    # Clear all selections after removal
+                    self.selected_members.clear()
+                    self.refresh_member_list(self.search_entry.get())
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to remove member: {str(e)}")
+        else:
+            if messagebox.askyesno("Confirm", f"Are you sure you want to remove {len(member_ids)} selected member(s)?"):
+                success_count = 0
+                for member_id in member_ids:
+                    try:
+                        self.db.remove_member(member_id)
+                        self.selected_members.discard(member_id)
+                        success_count += 1
+                    except Exception as e:
+                        print(f"Failed to remove member {member_id}: {str(e)}")
+                
+                messagebox.showinfo("Success", f"Successfully removed {success_count} out of {len(member_ids)} member(s)!")
+                # Clear selections for removed members
+                for member_id in member_ids:
+                    self.selected_members.discard(member_id)
                 self.refresh_member_list(self.search_entry.get())
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove member: {str(e)}")
