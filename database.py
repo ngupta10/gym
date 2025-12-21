@@ -19,10 +19,10 @@ class Database:
         """Create all necessary tables"""
         cursor = self.conn.cursor()
         
-        # Members table
+        # Members table - Using PRIMARY KEY without AUTOINCREMENT to allow ID reuse
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
                 email TEXT,
                 phone TEXT,
@@ -95,26 +95,91 @@ class Database:
             except sqlite3.OperationalError as e:
                 print(f"Migration warning: {e}")
         
+        # Migration: Reset SQLite sequence for ID reuse
+        # If the table was created with AUTOINCREMENT, SQLite maintains a sequence table
+        # We need to reset it to allow ID reuse
+        try:
+            # Check if sqlite_sequence table exists and has an entry for members
+            cursor.execute("""
+                SELECT name, seq FROM sqlite_sequence WHERE name = 'members'
+            """)
+            sequence_row = cursor.fetchone()
+            if sequence_row:
+                # Get the current highest ID from the actual members table
+                cursor.execute("SELECT COALESCE(MAX(id), 0) FROM members")
+                max_id_row = cursor.fetchone()
+                max_id = max_id_row[0] if max_id_row else 0
+                
+                # Update the sequence to match the actual max ID
+                # This ensures IDs can be reused properly
+                cursor.execute("""
+                    UPDATE sqlite_sequence SET seq = ? WHERE name = 'members'
+                """, (max_id,))
+                self.conn.commit()
+                print(f"Database migrated: Reset SQLite sequence for members table (max_id: {max_id})")
+        except sqlite3.OperationalError:
+            # sqlite_sequence table doesn't exist or members table doesn't use AUTOINCREMENT
+            # This is fine - it means we're already using manual ID assignment
+            pass
+        except Exception as e:
+            print(f"Migration warning (sequence reset): {e}")
+        
         self.conn.commit()
+    
+    def _get_next_available_id(self) -> int:
+        """Find the next available (lowest unused) member ID"""
+        cursor = self.conn.cursor()
+        
+        # Get all existing IDs from the members table
+        cursor.execute("SELECT id FROM members ORDER BY id")
+        existing_ids = {row[0] for row in cursor.fetchall()}
+        
+        # Find the lowest unused ID starting from 1
+        next_id = 1
+        while next_id in existing_ids:
+            next_id += 1
+        
+        # CRITICAL: Reset SQLite sequence table if it exists
+        # This ensures that even if the table was created with AUTOINCREMENT,
+        # SQLite won't try to use a higher sequence number
+        try:
+            # Check if sqlite_sequence table exists and has entry for members
+            cursor.execute("SELECT name FROM sqlite_sequence WHERE name = 'members'")
+            if cursor.fetchone():
+                # Reset the sequence to match our calculated next_id
+                # This prevents SQLite from trying to use a higher ID
+                cursor.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'members'", (next_id - 1,))
+                self.conn.commit()
+        except sqlite3.OperationalError:
+            # sqlite_sequence table doesn't exist - that's fine, table doesn't use AUTOINCREMENT
+            pass
+        except Exception as e:
+            # Log but don't fail - we'll still use the calculated next_id
+            print(f"Warning: Could not reset SQLite sequence: {e}")
+        
+        return next_id
     
     # Member operations
     def add_member(self, name: str, email: str, phone: str, join_date: date,
                    membership_type: str, fee_amount: float, payment_frequency: str,
                    trainer_id: int = None) -> int:
-        """Add a new member"""
+        """Add a new member with reusable ID"""
         cursor = self.conn.cursor()
+        
+        # Get the next available ID (reuses deleted IDs)
+        member_id = self._get_next_available_id()
         
         # Calculate next payment date based on frequency
         next_payment = self._calculate_next_payment_date(join_date, payment_frequency)
         
         cursor.execute("""
-            INSERT INTO members (name, email, phone, join_date, membership_type,
+            INSERT INTO members (id, name, email, phone, join_date, membership_type,
                                fee_amount, payment_frequency, next_payment_date, trainer_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (name, email, phone, join_date, membership_type, fee_amount, payment_frequency, next_payment, trainer_id))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (member_id, name, email, phone, join_date, membership_type, fee_amount, payment_frequency, next_payment, trainer_id))
         
         self.conn.commit()
-        return cursor.lastrowid
+        return member_id
     
     def update_member(self, member_id: int, **kwargs):
         """Update member fields"""
@@ -152,9 +217,12 @@ class Database:
         return dict(row) if row else None
     
     def remove_member(self, member_id: int):
-        """Soft delete a member (set status to inactive)"""
+        """Hard delete a member (permanently remove from database to allow ID reuse)"""
         cursor = self.conn.cursor()
-        cursor.execute("UPDATE members SET status = 'inactive' WHERE id = ?", (member_id,))
+        # Delete related payments first (to handle foreign key constraints)
+        cursor.execute("DELETE FROM payments WHERE member_id = ?", (member_id,))
+        # Delete the member (this frees up the ID for reuse)
+        cursor.execute("DELETE FROM members WHERE id = ?", (member_id,))
         self.conn.commit()
     
     def update_member_payment(self, member_id: int, payment_date: date):
@@ -353,6 +421,98 @@ class Database:
     def record_payment(self, member_id: int, amount: float, payment_date: date, notes: str = ""):
         """Record a payment (alias for add_payment)"""
         return self.add_payment(member_id, amount, payment_date, notes)
+    
+    def get_daily_revenue(self, target_date: date = None) -> float:
+        """Get total revenue for a specific date (defaults to today)"""
+        if target_date is None:
+            target_date = date.today()
+        cursor = self.conn.cursor()
+        date_str = target_date.strftime('%Y-%m-%d')
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM payments
+            WHERE DATE(payment_date) = DATE(?)
+        """, (date_str,))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_monthly_revenue(self, year: int = None, month: int = None) -> float:
+        """Get total revenue for a specific month (defaults to current month)"""
+        if year is None or month is None:
+            today = date.today()
+            year = today.year
+            month = today.month
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM payments
+            WHERE strftime('%Y', payment_date) = ? AND strftime('%m', payment_date) = ?
+        """, (str(year), f"{month:02d}"))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_total_revenue(self) -> float:
+        """Get total revenue from all time"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM payments")
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_members_by_trainer(self) -> List[Dict]:
+        """Get count of members per trainer"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT 
+                s.id as trainer_id,
+                s.name as trainer_name,
+                COUNT(m.id) as member_count
+            FROM staff s
+            LEFT JOIN members m ON s.id = m.trainer_id AND m.status = 'active'
+            WHERE s.position = 'Trainer' AND s.status = 'active'
+            GROUP BY s.id, s.name
+            ORDER BY member_count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_membership_type_distribution(self) -> List[Dict]:
+        """Get count of members by membership type"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT 
+                membership_type,
+                COUNT(*) as count
+            FROM members
+            WHERE status = 'active'
+            GROUP BY membership_type
+            ORDER BY count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_payment_frequency_distribution(self) -> List[Dict]:
+        """Get count of members by payment frequency"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT 
+                payment_frequency,
+                COUNT(*) as count
+            FROM members
+            WHERE status = 'active'
+            GROUP BY payment_frequency
+            ORDER BY count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_recent_payments(self, limit: int = 10) -> List[Dict]:
+        """Get recent payments"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT p.*, m.name as member_name 
+            FROM payments p
+            JOIN members m ON p.member_id = m.id
+            ORDER BY p.payment_date DESC, p.created_at DESC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
     
     # Helper methods
     def _calculate_next_payment_date(self, last_date: date, frequency: str) -> date:

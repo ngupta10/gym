@@ -6,6 +6,7 @@ import customtkinter as ctk
 from tkinter import ttk, messagebox, Entry, simpledialog
 from datetime import date, datetime
 import sqlite3
+import os
 
 class MemberManagement(ctk.CTkFrame):
     # Password for protected operations
@@ -455,7 +456,20 @@ class MemberManagement(ctk.CTkFrame):
             height=35,
             width=120
         )
-        refresh_btn.pack(side="left")
+        refresh_btn.pack(side="left", padx=(0, 10))
+        
+        # Fix ID Reuse button (utility function)
+        fix_id_btn = ctk.CTkButton(
+            button_container,
+            text="Fix ID Reuse",
+            command=self.fix_id_reuse,
+            fg_color="#8b5cf6",
+            hover_color="#7c3aed",
+            font=ctk.CTkFont(size=13),
+            height=35,
+            width=120
+        )
+        fix_id_btn.pack(side="left")
     
     def on_membership_type_change(self, value=None):
         """Show/hide trainer selection based on membership type"""
@@ -1131,7 +1145,7 @@ Status: {member.get('status', 'active').title()}"""
         self.refresh_member_list(self.search_entry.get())
     
     def remove_member(self):
-        """Remove/deactivate selected member"""
+        """Remove selected member(s) - supports multi-select deletion"""
         # Verify password before removing
         if not self.verify_password():
             return
@@ -1140,43 +1154,166 @@ Status: {member.get('status', 'active').title()}"""
         if self.selected_members:
             member_ids = list(self.selected_members)
         else:
+            # Fallback to tree selection (single selection)
             selection = self.tree.selection()
             if not selection:
-                messagebox.showinfo("Info", "Please select a member to remove.")
+                messagebox.showinfo("Info", "Please select one or more members using the checkboxes, then click 'Remove Member'.")
                 return
             item = self.tree.item(selection[0])
-            member_ids = [int(item['values'][1])]  # ID is in second column (index 1)
+            values = item['values']
+            if len(values) < 2:
+                messagebox.showinfo("Info", "Please select one or more members using the checkboxes, then click 'Remove Member'.")
+                return
+            member_ids = [int(values[1])]  # ID is in second column (index 1)
         
-        # Get member names
+        if not member_ids:
+            messagebox.showinfo("Info", "Please select one or more members using the checkboxes, then click 'Remove Member'.")
+            return
+        
+        # Get member names for confirmation
         all_members = self.db.get_all_members(active_only=False)
         member_dict = {m['id']: m for m in all_members}
         
         if len(member_ids) == 1:
             member_id = member_ids[0]
             member_name = member_dict.get(member_id, {}).get('name', f'ID {member_id}')
-            if messagebox.askyesno("Confirm", f"Are you sure you want to remove '{member_name}'?"):
+            if messagebox.askyesno("Confirm Deletion", f"Are you sure you want to permanently delete member '{member_name}' (ID: {member_id})?\n\nThis action cannot be undone and will free up the ID for reuse."):
                 try:
                     self.db.remove_member(member_id)
-                    self.selected_members.discard(member_id)
-                    messagebox.showinfo("Success", f"Member '{member_name}' removed successfully!")
+                    messagebox.showinfo("Success", f"Member '{member_name}' (ID: {member_id}) deleted successfully!\nThe ID {member_id} is now available for reuse.")
                     # Clear all selections after removal
                     self.selected_members.clear()
                     self.refresh_member_list(self.search_entry.get())
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to remove member: {str(e)}")
         else:
-            if messagebox.askyesno("Confirm", f"Are you sure you want to remove {len(member_ids)} selected member(s)?"):
+            # Multi-select deletion
+            member_names = [member_dict.get(mid, {}).get('name', f'ID {mid}') for mid in member_ids]
+            names_list = '\n'.join([f"  - {name} (ID: {mid})" for name, mid in zip(member_names, member_ids)])
+            if messagebox.askyesno("Confirm Bulk Deletion", 
+                                  f"Are you sure you want to permanently delete {len(member_ids)} selected member(s)?\n\n"
+                                  f"Members to be deleted:\n{names_list}\n\n"
+                                  f"This action cannot be undone and will free up the IDs for reuse."):
                 success_count = 0
+                failed_members = []
                 for member_id in member_ids:
                     try:
                         self.db.remove_member(member_id)
-                        self.selected_members.discard(member_id)
                         success_count += 1
                     except Exception as e:
+                        member_name = member_dict.get(member_id, {}).get('name', f'ID {member_id}')
+                        failed_members.append(f"{member_name} (ID: {member_id})")
                         print(f"Failed to remove member {member_id}: {str(e)}")
                 
-                messagebox.showinfo("Success", f"Successfully removed {success_count} out of {len(member_ids)} member(s)!")
-                # Clear selections for removed members
-                for member_id in member_ids:
-                    self.selected_members.discard(member_id)
+                # Show result message
+                if success_count > 0:
+                    message = f"Successfully deleted {success_count} out of {len(member_ids)} member(s)!\nThe deleted IDs are now available for reuse."
+                    if failed_members:
+                        message += f"\n\nFailed to delete:\n" + "\n".join(failed_members)
+                    messagebox.showinfo("Success", message)
+                else:
+                    messagebox.showerror("Error", f"Failed to delete all {len(member_ids)} member(s).")
+                
+                # Clear all selections after removal
+                self.selected_members.clear()
                 self.refresh_member_list(self.search_entry.get())
+    
+    def fix_id_reuse(self):
+        """Fix ID reuse issue by resetting SQLite sequence"""
+        # Verify password before fixing IDs
+        if not self.verify_password():
+            return
+        
+        # Show confirmation dialog
+        confirm_msg = (
+            "This will reset the database ID sequence to allow reuse of deleted member IDs.\n\n"
+            "Use this if you manually deleted members from the database and want new members\n"
+            "to reuse those deleted IDs instead of continuing from the highest ID.\n\n"
+            "Do you want to continue?"
+        )
+        
+        if not messagebox.askyesno("Fix ID Reuse", confirm_msg):
+            return
+        
+        try:
+            import sqlite3
+            import os
+            
+            # Get database path from the database connection
+            # The database object stores the path in db_path attribute
+            db_path = getattr(self.db, 'db_path', 'gym_management.db')
+            
+            # If path is relative, try to find the actual database file
+            if not os.path.isabs(db_path) and not os.path.exists(db_path):
+                # Try common locations
+                possible_paths = [
+                    "dist/gym_management.db",
+                    "gym_management.db",
+                    os.path.join(os.path.dirname(__file__), "dist", "gym_management.db"),
+                    os.path.join(os.path.dirname(__file__), "gym_management.db"),
+                ]
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        db_path = path
+                        break
+            
+            # Connect to database
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Get current max ID from members table
+            cursor.execute("SELECT COALESCE(MAX(id), 0) FROM members")
+            max_id = cursor.fetchone()[0]
+            
+            # Get all existing IDs
+            cursor.execute("SELECT id FROM members ORDER BY id")
+            existing_ids = {row[0] for row in cursor.fetchall()}
+            
+            # Find next available ID
+            next_id = 1
+            while next_id in existing_ids:
+                next_id += 1
+            
+            # Check if sqlite_sequence table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'")
+            sequence_exists = cursor.fetchone() is not None
+            
+            old_seq = None
+            if sequence_exists:
+                # Check if members table has an entry in sqlite_sequence
+                cursor.execute("SELECT seq FROM sqlite_sequence WHERE name = 'members'")
+                seq_row = cursor.fetchone()
+                
+                if seq_row:
+                    old_seq = seq_row[0]
+                    # Reset sequence to match max ID
+                    cursor.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'members'", (max_id,))
+                    conn.commit()
+            
+            conn.close()
+            
+            # Show success message with details
+            result_msg = (
+                f"✓ ID reuse fix completed!\n\n"
+                f"Current maximum ID: {max_id}\n"
+            )
+            
+            if old_seq is not None:
+                result_msg += f"Sequence reset from {old_seq} to {max_id}\n\n"
+            else:
+                result_msg += "No sequence adjustment needed\n\n"
+            
+            result_msg += (
+                f"Next available ID: {next_id}\n"
+                f"Total existing members: {len(existing_ids)}\n\n"
+                f"New members will now reuse deleted IDs starting from {next_id}."
+            )
+            
+            messagebox.showinfo("ID Reuse Fix Complete", result_msg)
+            
+            # Refresh the member list to show updated data
+            self.refresh_member_list(self.search_entry.get())
+            
+        except Exception as e:
+            error_msg = f"Failed to fix ID reuse:\n{str(e)}"
+            messagebox.showerror("Error", error_msg)
