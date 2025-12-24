@@ -16,6 +16,7 @@ from fee_management import FeeManagement
 from backup_manager import BackupManager
 from whatsapp_management import WhatsAppManagement
 from owner_dashboard import OwnerDashboard
+from locker_management import LockerManagement
 
 # Helper function to get resource path (works with PyInstaller)
 def resource_path(relative_path):
@@ -91,6 +92,7 @@ class GymManagementApp(ctk.CTk):
         self.staff_frame = None
         self.fee_frame = None
         self.whatsapp_frame = None
+        self.locker_frame = None
         self.owner_frame = None
         
         # Copyright footer
@@ -174,6 +176,7 @@ class GymManagementApp(ctk.CTk):
             ("Staff", self.show_staff),
             ("Fees & Payments", self.show_fees),
             ("WhatsApp Messages", self.show_whatsapp),
+            ("Locker Management", self.show_locker_management),
             ("Financial Dashboard", self.show_owner_dashboard),
         ]
         
@@ -401,9 +404,17 @@ class GymManagementApp(ctk.CTk):
         whatsapp_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
         self.whatsapp_frame = whatsapp_mgmt
     
+    def show_locker_management(self):
+        """Show locker management page"""
+        self.set_active_button(5)
+        self.clear_content()
+        locker_mgmt = LockerManagement(self.content_frame, self.db)
+        locker_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
+        self.locker_frame = locker_mgmt
+    
     def show_owner_dashboard(self):
         """Show financial dashboard page (password protected)"""
-        self.set_active_button(5)
+        self.set_active_button(6)
         self.clear_content()
         owner_dashboard = OwnerDashboard(self.content_frame, self.db)
         owner_dashboard.pack(fill="both", expand=True, padx=35, pady=35)

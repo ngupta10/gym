@@ -78,6 +78,38 @@ class Database:
             )
         """)
         
+        # Lockers table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS lockers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                member_id INTEGER NOT NULL,
+                locker_number TEXT,
+                fee_amount REAL NOT NULL,
+                payment_frequency TEXT NOT NULL,
+                start_date DATE NOT NULL,
+                last_payment_date DATE,
+                next_payment_date DATE,
+                status TEXT DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (member_id) REFERENCES members(id)
+            )
+        """)
+        
+        # Locker payment history table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS locker_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                locker_id INTEGER NOT NULL,
+                member_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                payment_date DATE NOT NULL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (locker_id) REFERENCES lockers(id),
+                FOREIGN KEY (member_id) REFERENCES members(id)
+            )
+        """)
+        
         self.conn.commit()
     
     def migrate_database(self):
@@ -545,10 +577,220 @@ class Database:
                 month -= 12
                 year += 1
             return _safe_date(year, month, last_date.day)
-        elif frequency == "Yearly":
+        elif frequency == "6 Months" or frequency == "Semi-Annual":
+            # Add 6 months
+            month = last_date.month + 6
+            year = last_date.year
+            if month > 12:
+                month -= 12
+                year += 1
+            return _safe_date(year, month, last_date.day)
+        elif frequency == "Yearly" or frequency == "Annual":
             return _safe_date(last_date.year + 1, last_date.month, last_date.day)
         else:  # Default to daily
             return date.fromordinal(last_date.toordinal() + 1)
+    
+    # Locker Management Methods
+    def assign_locker(self, member_id: int, locker_number: str, fee_amount: float, 
+                     payment_frequency: str, start_date: date) -> int:
+        """Assign a locker to a member and automatically record initial payment"""
+        cursor = self.conn.cursor()
+        
+        # Calculate next payment date based on frequency
+        next_payment = self._calculate_next_payment_date(start_date, payment_frequency)
+        
+        # Insert locker record
+        cursor.execute("""
+            INSERT INTO lockers (member_id, locker_number, fee_amount, payment_frequency,
+                               start_date, last_payment_date, next_payment_date, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+        """, (member_id, locker_number, fee_amount, payment_frequency, start_date, start_date, next_payment))
+        
+        locker_id = cursor.lastrowid
+        
+        # Automatically record the initial payment
+        cursor.execute("""
+            INSERT INTO locker_payments (locker_id, member_id, amount, payment_date, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (locker_id, member_id, fee_amount, start_date, f"Initial locker assignment payment"))
+        
+        self.conn.commit()
+        return locker_id
+    
+    def record_locker_payment(self, locker_id: int, payment_date: date, amount: float, notes: str = ""):
+        """Record a locker payment"""
+        cursor = self.conn.cursor()
+        
+        # Get locker details
+        cursor.execute("SELECT * FROM lockers WHERE id = ?", (locker_id,))
+        locker = cursor.fetchone()
+        if not locker:
+            raise ValueError(f"Locker with ID {locker_id} not found")
+        
+        locker_dict = dict(locker)
+        
+        # Insert payment record
+        cursor.execute("""
+            INSERT INTO locker_payments (locker_id, member_id, amount, payment_date, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (locker_id, locker_dict['member_id'], amount, payment_date, notes))
+        
+        # Update locker payment dates
+        next_payment = self._calculate_next_payment_date(payment_date, locker_dict['payment_frequency'])
+        cursor.execute("""
+            UPDATE lockers 
+            SET last_payment_date = ?, next_payment_date = ?
+            WHERE id = ?
+        """, (payment_date, next_payment, locker_id))
+        
+        self.conn.commit()
+    
+    def get_all_lockers(self, active_only: bool = False) -> List[Dict]:
+        """Get all lockers with member information"""
+        cursor = self.conn.cursor()
+        if active_only:
+            cursor.execute("""
+                SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+                FROM lockers l
+                JOIN members m ON l.member_id = m.id
+                WHERE l.status = 'active'
+                ORDER BY l.id DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+                FROM lockers l
+                JOIN members m ON l.member_id = m.id
+                ORDER BY l.id DESC
+            """)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_locker(self, locker_id: int) -> Optional[Dict]:
+        """Get a specific locker by ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+            FROM lockers l
+            JOIN members m ON l.member_id = m.id
+            WHERE l.id = ?
+        """, (locker_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    
+    def get_overdue_locker_payments(self) -> List[Dict]:
+        """Get lockers with overdue payments"""
+        cursor = self.conn.cursor()
+        today = date.today()
+        cursor.execute("""
+            SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+            FROM lockers l
+            JOIN members m ON l.member_id = m.id
+            WHERE l.status = 'active' 
+            AND l.next_payment_date < ?
+            ORDER BY l.next_payment_date ASC
+        """, (today,))
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def search_lockers(self, search_term: str) -> List[Dict]:
+        """Search lockers by member ID, name, phone, email, or locker number"""
+        cursor = self.conn.cursor()
+        search_pattern = f"%{search_term}%"
+        
+        # Check if search term is numeric (could be member ID or locker number)
+        is_numeric = search_term.strip().isdigit()
+        
+        if is_numeric:
+            # Search by ID or locker number
+            cursor.execute("""
+                SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+                FROM lockers l
+                JOIN members m ON l.member_id = m.id
+                WHERE l.member_id = ? OR l.locker_number LIKE ?
+                ORDER BY l.id DESC
+            """, (int(search_term), search_pattern))
+        else:
+            # Search by name, phone, email, or locker number
+            cursor.execute("""
+                SELECT l.*, m.name as member_name, m.phone as member_phone, m.email as member_email
+                FROM lockers l
+                JOIN members m ON l.member_id = m.id
+                WHERE m.name LIKE ? OR m.phone LIKE ? OR m.email LIKE ? OR l.locker_number LIKE ?
+                ORDER BY l.id DESC
+            """, (search_pattern, search_pattern, search_pattern, search_pattern))
+        
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_locker_payments(self, locker_id: int) -> List[Dict]:
+        """Get payment history for a specific locker"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM locker_payments
+            WHERE locker_id = ?
+            ORDER BY payment_date DESC, created_at DESC
+        """, (locker_id,))
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def update_locker_status(self, locker_id: int, status: str):
+        """Update locker status (active/inactive)"""
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE lockers SET status = ? WHERE id = ?", (status, locker_id))
+        self.conn.commit()
+    
+    def remove_locker(self, locker_id: int):
+        """Remove/unassign a locker (set status to inactive)"""
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE lockers SET status = 'inactive' WHERE id = ?", (locker_id,))
+        self.conn.commit()
+    
+    # Locker Revenue Analytics Methods
+    def get_daily_locker_revenue(self) -> float:
+        """Get total locker revenue for today"""
+        cursor = self.conn.cursor()
+        today = date.today()
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM locker_payments 
+            WHERE DATE(payment_date) = DATE(?)
+        """, (today,))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_monthly_locker_revenue(self) -> float:
+        """Get total locker revenue for current month"""
+        cursor = self.conn.cursor()
+        today = date.today()
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM locker_payments 
+            WHERE strftime('%Y-%m', payment_date) = strftime('%Y-%m', ?)
+        """, (today,))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_annual_locker_revenue(self) -> float:
+        """Get total locker revenue for current year"""
+        cursor = self.conn.cursor()
+        today = date.today()
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM locker_payments 
+            WHERE strftime('%Y', payment_date) = strftime('%Y', ?)
+        """, (today,))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
+    
+    def get_ytd_locker_revenue(self) -> float:
+        """Get year-to-date locker revenue (from Jan 1 to today)"""
+        cursor = self.conn.cursor()
+        today = date.today()
+        year_start = date(today.year, 1, 1)
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM locker_payments 
+            WHERE DATE(payment_date) >= DATE(?) AND DATE(payment_date) <= DATE(?)
+        """, (year_start, today))
+        result = cursor.fetchone()
+        return float(result[0]) if result and result[0] else 0.0
     
     def close(self):
         """Close database connection"""

@@ -47,20 +47,39 @@ class OwnerDashboard(ctk.CTkFrame):
     
     def setup_ui(self):
         """Create the financial dashboard UI"""
-        # Title
+        # Title and Refresh Button Frame
+        self.title_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.title_frame.pack(anchor="w", pady=(0, 25), fill="x")
+        
         title = ctk.CTkLabel(
-            self,
+            self.title_frame,
             text="Financial Dashboard",
             font=ctk.CTkFont(size=26, weight="bold"),
             text_color="#0f172a"
         )
-        title.pack(anchor="w", pady=(0, 25))
+        title.pack(side="left")
+        
+        # Refresh Button
+        refresh_btn = ctk.CTkButton(
+            self.title_frame,
+            text="🔄 Refresh",
+            command=self.refresh_dashboard,
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            width=120,
+            height=35
+        )
+        refresh_btn.pack(side="right", padx=(10, 0))
     
     def load_dashboard(self):
         """Load dashboard content after authentication"""
-        # Clear any existing content
-        for widget in self.winfo_children():
-            if isinstance(widget, ctk.CTkLabel) and widget.cget("text") != "Financial Dashboard":
+        self.refresh_dashboard()
+    
+    def refresh_dashboard(self):
+        """Refresh dashboard content with latest data"""
+        # Destroy all widgets except title frame
+        for widget in list(self.winfo_children()):
+            if widget != self.title_frame:
                 widget.destroy()
         
         # Create scrollable frame for all content
@@ -78,6 +97,9 @@ class OwnerDashboard(ctk.CTkFrame):
         
         # Recent Payments Section
         self.create_recent_payments_section(scrollable_frame)
+        
+        # Locker Revenue Analytics Section
+        self.create_locker_revenue_section(scrollable_frame)
     
     def create_financial_section(self, parent):
         """Create financial metrics section"""
@@ -474,4 +496,42 @@ class OwnerDashboard(ctk.CTkFrame):
         notes_label.pack(side="left")
         
         return row
+    
+    def create_locker_revenue_section(self, parent):
+        """Create locker revenue analytics section"""
+        # Section title
+        section_title = ctk.CTkLabel(
+            parent,
+            text="Locker Revenue Analytics",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="#0f172a"
+        )
+        section_title.pack(anchor="w", pady=(0, 15), padx=20)
+        
+        # Locker revenue cards container
+        locker_revenue_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        locker_revenue_frame.pack(fill="x", padx=20, pady=(0, 30))
+        
+        # Get locker revenue data
+        daily_locker_revenue = self.db.get_daily_locker_revenue()
+        monthly_locker_revenue = self.db.get_monthly_locker_revenue()
+        annual_locker_revenue = self.db.get_annual_locker_revenue()
+        ytd_locker_revenue = self.db.get_ytd_locker_revenue()
+        
+        # Calculate today's date for display
+        today = date.today()
+        current_month = today.strftime("%B %Y")
+        current_year = today.strftime("%Y")
+        
+        # Locker revenue cards
+        locker_revenue_cards = [
+            ("Daily Locker Revenue", f"₹{daily_locker_revenue:,.2f}", f"Today ({today.strftime('%d %b %Y')})", "#f59e0b"),
+            ("Monthly Locker Revenue", f"₹{monthly_locker_revenue:,.2f}", current_month, "#ec4899"),
+            ("Annual Locker Revenue", f"₹{annual_locker_revenue:,.2f}", current_year, "#14b8a6"),
+            ("Year-to-Date Locker Revenue", f"₹{ytd_locker_revenue:,.2f}", f"Jan 1 - {today.strftime('%d %b %Y')}", "#8b5cf6"),
+        ]
+        
+        for label, value, subtitle, color in locker_revenue_cards:
+            card = self.create_financial_card(locker_revenue_frame, label, value, subtitle, color)
+            card.pack(side="left", padx=7, fill="both", expand=True)
 

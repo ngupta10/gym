@@ -598,8 +598,18 @@ class MemberManagement(ctk.CTkFrame):
         
         # Filter by search term if provided
         if search_term:
-            search_term = search_term.lower()
-            members = [m for m in members if search_term in m['name'].lower()]
+            search_term_lower = search_term.lower()
+            # Check if search term is numeric (could be an ID)
+            is_numeric = search_term.strip().isdigit()
+            filtered_members = []
+            for m in members:
+                # Search by name (case-insensitive)
+                if search_term_lower in m['name'].lower():
+                    filtered_members.append(m)
+                # Search by ID if search term is numeric
+                elif is_numeric and str(m['id']) == search_term.strip():
+                    filtered_members.append(m)
+            members = filtered_members
         
         # Get all trainers for name lookup
         trainers = self.db.get_trainers()
