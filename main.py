@@ -263,22 +263,22 @@ class GymManagementApp(ctk.CTk):
             overdue_card = self.create_alert_card(
                 content,
                 f"OVERDUE PAYMENTS ({len(overdue)})",
-                overdue[:10],
+                overdue,
                 '#fef2f2',
                 '#dc2626'
             )
-            overdue_card.pack(fill="x", pady=(0, 10))
+            overdue_card.pack(fill="both", expand=True, pady=(0, 10))
         
         # Due soon alerts
         if due_soon:
             due_soon_card = self.create_alert_card(
                 content,
                 f"PAYMENTS DUE SOON ({len(due_soon)})",
-                due_soon[:10],
+                due_soon,
                 '#fffbeb',
                 '#d97706'
             )
-            due_soon_card.pack(fill="x", pady=(0, 10))
+            due_soon_card.pack(fill="both", expand=True, pady=(0, 10))
         
         if not overdue and not due_soon:
             success_card = ctk.CTkFrame(
@@ -330,7 +330,7 @@ class GymManagementApp(ctk.CTk):
         return card
     
     def create_alert_card(self, parent, title, items, bg_color, title_color):
-        """Create an alert card"""
+        """Create an alert card with scrollable content"""
         card = ctk.CTkFrame(
             parent,
             fg_color=bg_color,
@@ -338,6 +338,8 @@ class GymManagementApp(ctk.CTk):
             border_color=title_color,
             corner_radius=8
         )
+        card.grid_rowconfigure(1, weight=1)
+        card.grid_columnconfigure(0, weight=1)
         
         title_label = ctk.CTkLabel(
             card,
@@ -345,7 +347,17 @@ class GymManagementApp(ctk.CTk):
             font=ctk.CTkFont(size=15, weight="bold"),
             text_color=title_color
         )
-        title_label.pack(anchor="w", padx=15, pady=(15, 10))
+        title_label.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
+        
+        # Scrollable frame for items
+        # Calculate height based on number of items (max 300px, min 150px)
+        max_height = min(300, max(150, len(items) * 30 + 20))
+        scrollable_frame = ctk.CTkScrollableFrame(
+            card,
+            fg_color="transparent",
+            height=max_height
+        )
+        scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
         
         for item in items:
             if isinstance(item, dict):
@@ -358,12 +370,13 @@ class GymManagementApp(ctk.CTk):
                     text = f"{item['name']} - ₹{item['fee_amount']:.2f} (Due in {days_until} days)"
                 
                 item_label = ctk.CTkLabel(
-                    card,
+                    scrollable_frame,
                     text=text,
                     font=ctk.CTkFont(size=13),
-                    text_color="#1e293b"
+                    text_color="#1e293b",
+                    anchor="w"
                 )
-                item_label.pack(anchor="w", padx=(25, 15), pady=2)
+                item_label.pack(fill="x", padx=(10, 0), pady=2)
         
         return card
     

@@ -65,12 +65,21 @@ class LockerManagement(ctk.CTkFrame):
         list_frame.grid_rowconfigure(1, weight=1)
         list_frame.grid_columnconfigure(0, weight=1)
         
-        # Search and Actions
-        search_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
-        search_frame.pack(fill="x", pady=(0, 10))
+        # Search and Actions - with horizontal scroll
+        search_container = ctk.CTkFrame(list_frame, fg_color="transparent")
+        search_container.pack(fill="x", pady=(0, 10))
+        
+        # Horizontal scrollable frame for buttons
+        search_scrollable = ctk.CTkScrollableFrame(
+            search_container,
+            orientation="horizontal",
+            fg_color="transparent",
+            height=50
+        )
+        search_scrollable.pack(fill="x", expand=False)
         
         search_label = ctk.CTkLabel(
-            search_frame,
+            search_scrollable,
             text="Search Lockers:",
             font=ctk.CTkFont(size=14),
             text_color="#1a1a2e"
@@ -78,16 +87,16 @@ class LockerManagement(ctk.CTkFrame):
         search_label.pack(side="left", padx=(0, 10))
         
         self.search_entry = ctk.CTkEntry(
-            search_frame,
+            search_scrollable,
             placeholder_text="Search by ID, name, phone, email, or locker number...",
             width=300
         )
-        self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<KeyRelease>", self.on_search)
         
         # Overdue Payments Button
         overdue_btn = ctk.CTkButton(
-            search_frame,
+            search_scrollable,
             text="View Overdue Payments",
             command=self.show_overdue_payments,
             fg_color="#ef4444",
@@ -98,7 +107,7 @@ class LockerManagement(ctk.CTkFrame):
         
         # Remove Locker Button
         remove_btn = ctk.CTkButton(
-            search_frame,
+            search_scrollable,
             text="Remove Locker",
             command=self.remove_locker,
             fg_color="#dc2626",
@@ -351,7 +360,7 @@ class LockerManagement(ctk.CTkFrame):
         
         for col, width in columns.items():
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, anchor="center")
+            self.tree.column(col, width=width, anchor="center", minwidth=width, stretch=False)
         
         # Style
         style = ttk.Style()
