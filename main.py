@@ -17,6 +17,7 @@ from backup_manager import BackupManager
 from whatsapp_management import WhatsAppManagement
 from owner_dashboard import OwnerDashboard
 from locker_management import LockerManagement
+from payment_alerts import PaymentAlerts
 
 # Helper function to get resource path (works with PyInstaller)
 def resource_path(relative_path):
@@ -172,6 +173,7 @@ class GymManagementApp(ctk.CTk):
         # Navigation buttons
         nav_buttons = [
             ("Dashboard", self.show_dashboard),
+            ("Payment Alerts", self.show_payment_alerts),
             ("Members", self.show_members),
             ("Staff", self.show_staff),
             ("Fees & Payments", self.show_fees),
@@ -239,24 +241,39 @@ class GymManagementApp(ctk.CTk):
         due_soon = self.db.get_due_soon_members()  # Frequency-aware reminders
         
         stats = [
-            ("Total Members", len(members), '#3b82f6'),
-            ("Total Staff", len(staff), '#10b981'),
-            ("Overdue Payments", len(overdue), '#ef4444'),
-            ("Due Soon", len(due_soon), '#f59e0b'),
+            ("Total Members", len(members), '#3b82f6', None),
+            ("Total Staff", len(staff), '#10b981', None),
+            ("Overdue Payments", len(overdue), '#ef4444', None),
+            ("Due Soon", len(due_soon), '#f59e0b', None),
         ]
         
-        for label, value, color in stats:
-            card = self.create_stat_card(stats_frame, label, value, color)
+        for label, value, color, command in stats:
+            card = self.create_stat_card(stats_frame, label, value, color, command)
             card.pack(side="left", padx=7, fill="both", expand=True)
         
-        # Alerts section
+        # Alerts section with link
+        alerts_header = ctk.CTkFrame(content, fg_color="transparent")
+        alerts_header.pack(fill="x", pady=(0, 15))
+        
         alerts_title = ctk.CTkLabel(
-            content,
+            alerts_header,
             text="Payment Alerts",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#0f172a"
         )
-        alerts_title.pack(anchor="w", pady=(0, 15))
+        alerts_title.pack(side="left")
+        
+        view_all_btn = ctk.CTkButton(
+            alerts_header,
+            text="View All →",
+            command=self.show_payment_alerts,
+            width=100,
+            height=30,
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            font=ctk.CTkFont(size=12)
+        )
+        view_all_btn.pack(side="right")
         
         # Overdue alerts
         if overdue:
@@ -300,7 +317,7 @@ class GymManagementApp(ctk.CTk):
         
         self.dashboard_frame = content
     
-    def create_stat_card(self, parent, label, value, color):
+    def create_stat_card(self, parent, label, value, color, command=None):
         """Create a professional statistics card"""
         card = ctk.CTkFrame(
             parent,
@@ -311,6 +328,13 @@ class GymManagementApp(ctk.CTk):
             height=120
         )
         
+        # Make card clickable if command provided
+        if command:
+            card.configure(cursor="hand2")
+            card.bind("<Button-1>", lambda e, cmd=command: cmd())
+            for child in card.winfo_children():
+                child.bind("<Button-1>", lambda e, cmd=command: cmd())
+        
         value_label = ctk.CTkLabel(
             card,
             text=str(value),
@@ -318,6 +342,8 @@ class GymManagementApp(ctk.CTk):
             text_color=color
         )
         value_label.pack(pady=(20, 5))
+        if command:
+            value_label.configure(cursor="hand2")
         
         label_label = ctk.CTkLabel(
             card,
@@ -326,6 +352,15 @@ class GymManagementApp(ctk.CTk):
             text_color="#64748b"
         )
         label_label.pack()
+        if command:
+            label_label.configure(cursor="hand2")
+            # Add click indicator
+            click_hint = ctk.CTkLabel(
+                card,
+                font=ctk.CTkFont(size=10),
+                text_color="#94a3b8"
+            )
+            click_hint.pack(pady=(2, 0))
         
         return card
     
@@ -385,9 +420,17 @@ class GymManagementApp(ctk.CTk):
         for widget in self.content_frame.winfo_children():
             widget.destroy()
     
+    def show_payment_alerts(self):
+        """Show payment alerts page"""
+        self.set_active_button(1)
+        self.clear_content()
+        payment_alerts = PaymentAlerts(self.content_frame, self.db)
+        payment_alerts.pack(fill="both", expand=True, padx=35, pady=35)
+        self.payment_alerts_frame = payment_alerts
+    
     def show_members(self):
         """Show member management page"""
-        self.set_active_button(1)
+        self.set_active_button(2)
         self.clear_content()
         member_mgmt = MemberManagement(self.content_frame, self.db)
         member_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -395,7 +438,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_staff(self):
         """Show staff management page"""
-        self.set_active_button(2)
+        self.set_active_button(3)
         self.clear_content()
         staff_mgmt = StaffManagement(self.content_frame, self.db)
         staff_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -403,7 +446,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_fees(self):
         """Show fee management page"""
-        self.set_active_button(3)
+        self.set_active_button(4)
         self.clear_content()
         fee_mgmt = FeeManagement(self.content_frame, self.db)
         fee_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -411,7 +454,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_whatsapp(self):
         """Show WhatsApp management page"""
-        self.set_active_button(4)
+        self.set_active_button(5)
         self.clear_content()
         whatsapp_mgmt = WhatsAppManagement(self.content_frame, self.db)
         whatsapp_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -419,7 +462,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_locker_management(self):
         """Show locker management page"""
-        self.set_active_button(5)
+        self.set_active_button(6)
         self.clear_content()
         locker_mgmt = LockerManagement(self.content_frame, self.db)
         locker_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -427,7 +470,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_owner_dashboard(self):
         """Show financial dashboard page (password protected)"""
-        self.set_active_button(6)
+        self.set_active_button(7)
         self.clear_content()
         owner_dashboard = OwnerDashboard(self.content_frame, self.db)
         owner_dashboard.pack(fill="both", expand=True, padx=35, pady=35)

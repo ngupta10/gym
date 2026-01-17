@@ -55,7 +55,7 @@ gym_management.db
 # OS
 .DS_Store
 Thumbs.db
-
+backups/
 
 
 
