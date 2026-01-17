@@ -262,8 +262,28 @@ class Database:
         cursor = self.conn.cursor()
         member = self.get_member(member_id)
         if member:
+            payment_frequency = member['payment_frequency']
+            
+            # For daily payments, use the actual payment date to calculate next payment
+            # For all other frequencies, use the original due date to preserve billing cycle day
+            if payment_frequency == "Daily":
+                base_date = payment_date
+            else:
+                # Use the original due date (next_payment_date) to calculate next payment,
+                # not the actual payment date. This preserves the billing cycle day.
+                original_due_date = member.get('next_payment_date')
+                if not original_due_date:
+                    raise ValueError(f"Member {member_id} has no next_payment_date set. Cannot calculate next payment.")
+                
+                # Convert to date if it's a string
+                if isinstance(original_due_date, str):
+                    original_due_date = datetime.strptime(original_due_date, '%Y-%m-%d').date()
+                
+                base_date = original_due_date
+            
+            # Calculate next payment date
             next_payment = self._calculate_next_payment_date(
-                payment_date, member['payment_frequency']
+                base_date, payment_frequency
             )
             cursor.execute("""
                 UPDATE members 
@@ -636,7 +656,27 @@ class Database:
         """, (locker_id, locker_dict['member_id'], amount, payment_date, notes))
         
         # Update locker payment dates
-        next_payment = self._calculate_next_payment_date(payment_date, locker_dict['payment_frequency'])
+        payment_frequency = locker_dict['payment_frequency']
+        
+        # For daily payments, use the actual payment date to calculate next payment
+        # For all other frequencies, use the original due date to preserve billing cycle day
+        if payment_frequency == "Daily":
+            base_date = payment_date
+        else:
+            # Use the original due date (next_payment_date) to calculate next payment,
+            # not the actual payment date. This preserves the billing cycle day.
+            original_due_date = locker_dict.get('next_payment_date')
+            if not original_due_date:
+                raise ValueError(f"Locker {locker_id} has no next_payment_date set. Cannot calculate next payment.")
+            
+            # Convert to date if it's a string
+            if isinstance(original_due_date, str):
+                original_due_date = datetime.strptime(original_due_date, '%Y-%m-%d').date()
+            
+            base_date = original_due_date
+        
+        # Calculate next payment date
+        next_payment = self._calculate_next_payment_date(base_date, payment_frequency)
         cursor.execute("""
             UPDATE lockers 
             SET last_payment_date = ?, next_payment_date = ?
