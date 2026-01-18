@@ -318,6 +318,10 @@ class PaymentAlerts(ctk.CTkFrame):
         # Fix payment dates for all members (handles existing and future issues)
         fixed_count = self.db.fix_payment_dates()
         
+        # Optional: Show a message if members were fixed (for debugging)
+        # if fixed_count > 0:
+        #     messagebox.showinfo("Payment Dates Fixed", f"Fixed payment dates for {fixed_count} member(s)")
+        
         # Store reference to summary cards frame
         if not hasattr(self, 'summary_cards_frame'):
             # Find and store reference to summary cards frame

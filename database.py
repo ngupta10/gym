@@ -298,6 +298,7 @@ class Database:
         This handles cases where:
         1. last_payment_date > next_payment_date (late payment)
         2. last_payment_date == next_payment_date (payment on due date, but next not updated)
+        3. next_payment_date is too close to last_payment_date for the frequency (e.g., 1 day for Monthly)
         
         Returns the number of members fixed.
         """
@@ -328,22 +329,96 @@ class Database:
             if isinstance(next_payment, str):
                 next_payment = datetime.strptime(next_payment, '%Y-%m-%d').date()
             
+            days_diff = (next_payment - last_payment).days
+            needs_fix = False
+            
             # Check if inconsistent: last_payment_date >= next_payment_date
-            # (>= instead of > to also handle same date case)
             if last_payment >= next_payment:
+                needs_fix = True
+            # Check if next_payment_date is too close for the frequency
+            elif frequency == "Daily":
+                if days_diff != 1:
+                    needs_fix = True
+            elif frequency == "Monthly":
+                # For monthly, should be at least 25 days (allowing for month variations)
+                if days_diff < 25:
+                    needs_fix = True
+            elif frequency == "Quarterly":
+                # For quarterly, should be at least 80 days
+                if days_diff < 80:
+                    needs_fix = True
+            elif frequency == "6 Months" or frequency == "Semi-Annual":
+                # For 6 months, should be at least 150 days
+                if days_diff < 150:
+                    needs_fix = True
+            elif frequency == "Yearly" or frequency == "Annual":
+                # For yearly, should be at least 300 days
+                if days_diff < 300:
+                    needs_fix = True
+            
+            if needs_fix:
                 # Fix the next_payment_date
                 if frequency == "Daily":
                     # For daily, next payment is last payment + 1 day
                     fixed_next_payment = date.fromordinal(last_payment.toordinal() + 1)
                 else:
                     # For other frequencies, preserve billing cycle day
-                    # Start from the original due date (next_payment_date)
-                    # Keep advancing until we're ahead of last_payment_date
-                    fixed_next_payment = next_payment
-                    while fixed_next_payment <= last_payment:
-                        fixed_next_payment = self._calculate_next_payment_date(
-                            fixed_next_payment, frequency
-                        )
+                    # Get the billing cycle day from the member's join_date or last_payment_date
+                    # First, try to get join_date to determine billing cycle day
+                    cursor.execute("SELECT join_date FROM members WHERE id = ?", (member_id,))
+                    join_date_row = cursor.fetchone()
+                    if join_date_row and join_date_row[0]:
+                        if isinstance(join_date_row[0], str):
+                            join_date = datetime.strptime(join_date_row[0], '%Y-%m-%d').date()
+                        else:
+                            join_date = join_date_row[0]
+                        billing_day = join_date.day
+                    else:
+                        # Fallback to last_payment_date day
+                        billing_day = last_payment.day
+                    
+                    # Calculate next payment from last_payment_date, preserving billing cycle day
+                    # For monthly: add 1 month to last_payment_date, but use billing_day
+                    if frequency == "Monthly":
+                        if last_payment.month == 12:
+                            candidate = date(last_payment.year + 1, 1, billing_day)
+                        else:
+                            candidate = date(last_payment.year, last_payment.month + 1, billing_day)
+                    elif frequency == "Quarterly":
+                        month = last_payment.month + 3
+                        year = last_payment.year
+                        if month > 12:
+                            month -= 12
+                            year += 1
+                        candidate = date(year, month, billing_day)
+                    elif frequency == "6 Months" or frequency == "Semi-Annual":
+                        month = last_payment.month + 6
+                        year = last_payment.year
+                        if month > 12:
+                            month -= 12
+                            year += 1
+                        candidate = date(year, month, billing_day)
+                    elif frequency == "Yearly" or frequency == "Annual":
+                        candidate = date(last_payment.year + 1, last_payment.month, billing_day)
+                    else:
+                        # Default to monthly
+                        if last_payment.month == 12:
+                            candidate = date(last_payment.year + 1, 1, billing_day)
+                        else:
+                            candidate = date(last_payment.year, last_payment.month + 1, billing_day)
+                    
+                    # Handle invalid dates (e.g., Jan 31 -> Feb 31)
+                    from calendar import monthrange
+                    try:
+                        fixed_next_payment = candidate
+                    except ValueError:
+                        # Day doesn't exist in target month, use last day
+                        last_day = monthrange(candidate.year, candidate.month)[1]
+                        fixed_next_payment = date(candidate.year, candidate.month, last_day)
+                    
+                    # Ensure it's ahead of last_payment_date
+                    if fixed_next_payment <= last_payment:
+                        fixed_next_payment = self._calculate_next_payment_date(fixed_next_payment, frequency)
                 
                 # Update the database
                 cursor.execute("""
