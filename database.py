@@ -292,6 +292,72 @@ class Database:
             """, (payment_date, next_payment, member_id))
             self.conn.commit()
     
+    def fix_payment_dates(self) -> int:
+        """
+        Fix inconsistent payment dates for all active members.
+        This handles cases where:
+        1. last_payment_date > next_payment_date (late payment)
+        2. last_payment_date == next_payment_date (payment on due date, but next not updated)
+        
+        Returns the number of members fixed.
+        """
+        cursor = self.conn.cursor()
+        today = date.today()
+        fixed_count = 0
+        
+        # Get all active members
+        cursor.execute("""
+            SELECT id, last_payment_date, next_payment_date, payment_frequency
+            FROM members 
+            WHERE status = 'active'
+            AND last_payment_date IS NOT NULL
+            AND next_payment_date IS NOT NULL
+        """)
+        
+        members = cursor.fetchall()
+        
+        for member_row in members:
+            member_id = member_row[0]
+            last_payment = member_row[1]
+            next_payment = member_row[2]
+            frequency = member_row[3]
+            
+            # Convert to date objects if strings
+            if isinstance(last_payment, str):
+                last_payment = datetime.strptime(last_payment, '%Y-%m-%d').date()
+            if isinstance(next_payment, str):
+                next_payment = datetime.strptime(next_payment, '%Y-%m-%d').date()
+            
+            # Check if inconsistent: last_payment_date >= next_payment_date
+            # (>= instead of > to also handle same date case)
+            if last_payment >= next_payment:
+                # Fix the next_payment_date
+                if frequency == "Daily":
+                    # For daily, next payment is last payment + 1 day
+                    fixed_next_payment = date.fromordinal(last_payment.toordinal() + 1)
+                else:
+                    # For other frequencies, preserve billing cycle day
+                    # Start from the original due date (next_payment_date)
+                    # Keep advancing until we're ahead of last_payment_date
+                    fixed_next_payment = next_payment
+                    while fixed_next_payment <= last_payment:
+                        fixed_next_payment = self._calculate_next_payment_date(
+                            fixed_next_payment, frequency
+                        )
+                
+                # Update the database
+                cursor.execute("""
+                    UPDATE members 
+                    SET next_payment_date = ?
+                    WHERE id = ?
+                """, (fixed_next_payment, member_id))
+                fixed_count += 1
+        
+        if fixed_count > 0:
+            self.conn.commit()
+        
+        return fixed_count
+    
     def get_overdue_members(self) -> List[Dict]:
         """Get members with overdue payments"""
         cursor = self.conn.cursor()

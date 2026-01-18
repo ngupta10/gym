@@ -314,7 +314,10 @@ class PaymentAlerts(ctk.CTkFrame):
         self.selected_count_label.pack(side="left", padx=10)
     
     def refresh_data(self):
-        """Refresh all data"""
+        """Refresh all data and fix any inconsistent payment dates"""
+        # Fix payment dates for all members (handles existing and future issues)
+        fixed_count = self.db.fix_payment_dates()
+        
         # Store reference to summary cards frame
         if not hasattr(self, 'summary_cards_frame'):
             # Find and store reference to summary cards frame
