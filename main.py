@@ -18,6 +18,7 @@ from whatsapp_management import WhatsAppManagement
 from owner_dashboard import OwnerDashboard
 from locker_management import LockerManagement
 from payment_alerts import PaymentAlerts
+from trainers import Trainers
 
 # Helper function to get resource path (works with PyInstaller)
 def resource_path(relative_path):
@@ -95,6 +96,7 @@ class GymManagementApp(ctk.CTk):
         self.whatsapp_frame = None
         self.locker_frame = None
         self.owner_frame = None
+        self.trainers_frame = None
         
         # Copyright footer
         self.create_footer(main_container)
@@ -176,6 +178,7 @@ class GymManagementApp(ctk.CTk):
             ("Payment Alerts", self.show_payment_alerts),
             ("Members", self.show_members),
             ("Staff", self.show_staff),
+            ("Trainers", self.show_trainers),
             ("Fees & Payments", self.show_fees),
             ("WhatsApp Messages", self.show_whatsapp),
             ("Locker Management", self.show_locker_management),
@@ -444,9 +447,17 @@ class GymManagementApp(ctk.CTk):
         staff_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
         self.staff_frame = staff_mgmt
     
+    def show_trainers(self):
+        """Show trainers page"""
+        self.set_active_button(4)
+        self.clear_content()
+        trainers_view = Trainers(self.content_frame, self.db)
+        trainers_view.pack(fill="both", expand=True, padx=35, pady=35)
+        self.trainers_frame = trainers_view
+    
     def show_fees(self):
         """Show fee management page"""
-        self.set_active_button(4)
+        self.set_active_button(5)
         self.clear_content()
         fee_mgmt = FeeManagement(self.content_frame, self.db)
         fee_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -454,7 +465,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_whatsapp(self):
         """Show WhatsApp management page"""
-        self.set_active_button(5)
+        self.set_active_button(6)
         self.clear_content()
         whatsapp_mgmt = WhatsAppManagement(self.content_frame, self.db)
         whatsapp_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -462,7 +473,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_locker_management(self):
         """Show locker management page"""
-        self.set_active_button(6)
+        self.set_active_button(7)
         self.clear_content()
         locker_mgmt = LockerManagement(self.content_frame, self.db)
         locker_mgmt.pack(fill="both", expand=True, padx=35, pady=35)
@@ -470,7 +481,7 @@ class GymManagementApp(ctk.CTk):
     
     def show_owner_dashboard(self):
         """Show financial dashboard page (password protected)"""
-        self.set_active_button(7)
+        self.set_active_button(8)
         self.clear_content()
         owner_dashboard = OwnerDashboard(self.content_frame, self.db)
         owner_dashboard.pack(fill="both", expand=True, padx=35, pady=35)

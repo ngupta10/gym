@@ -667,6 +667,23 @@ class Database:
         """)
         return [dict(row) for row in cursor.fetchall()]
     
+    def get_members_for_trainer(self, trainer_id: int, active_only: bool = True) -> List[Dict]:
+        """Get all members assigned to a specific trainer"""
+        cursor = self.conn.cursor()
+        if active_only:
+            cursor.execute("""
+                SELECT * FROM members 
+                WHERE trainer_id = ? AND status = 'active'
+                ORDER BY name ASC
+            """, (trainer_id,))
+        else:
+            cursor.execute("""
+                SELECT * FROM members 
+                WHERE trainer_id = ?
+                ORDER BY name ASC
+            """, (trainer_id,))
+        return [dict(row) for row in cursor.fetchall()]
+    
     def get_membership_type_distribution(self) -> List[Dict]:
         """Get count of members by membership type"""
         cursor = self.conn.cursor()
