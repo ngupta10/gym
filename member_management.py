@@ -882,8 +882,8 @@ class MemberManagement(ctk.CTkFrame):
             if join_date_str:
                 try:
                     join_date = datetime.strptime(join_date_str, '%Y-%m-%d').date()
-                    # Recalculate next payment date
-                    next_payment = self.db._calculate_next_payment_date(join_date, payment_frequency)
+                    # Recalculate next payment date, preserving join_date day
+                    next_payment = self.db._calculate_next_payment_date(join_date, payment_frequency, billing_day=join_date.day)
                     # Update the Next Payment column (index 10, after Fee column)
                     values[10] = next_payment.strftime('%Y-%m-%d')
                     self.tree.item(item, values=tuple(values))
@@ -963,13 +963,13 @@ class MemberManagement(ctk.CTkFrame):
                     
                     # Recalculate next_payment_date if join_date, payment_frequency, or membership_type changed
                     if join_date_changed and new_join_date:
-                        # Use new join date and payment frequency
-                        next_payment = self.db._calculate_next_payment_date(new_join_date, updates['payment_frequency'])
+                        # Use new join date and payment frequency, preserving join_date day
+                        next_payment = self.db._calculate_next_payment_date(new_join_date, updates['payment_frequency'], billing_day=new_join_date.day)
                         updates['next_payment_date'] = next_payment
                     elif payment_frequency_changed:
                         # Payment frequency changed, recalculate from current join_date
                         join_date_to_use = new_join_date if new_join_date else datetime.strptime(current_member.get('join_date', date.today().isoformat()), '%Y-%m-%d').date()
-                        next_payment = self.db._calculate_next_payment_date(join_date_to_use, updates['payment_frequency'])
+                        next_payment = self.db._calculate_next_payment_date(join_date_to_use, updates['payment_frequency'], billing_day=join_date_to_use.day)
                         updates['next_payment_date'] = next_payment
                     
                     self.db.update_member(member_id, **updates)

@@ -201,8 +201,8 @@ class Database:
         # Get the next available ID (reuses deleted IDs)
         member_id = self._get_next_available_id()
         
-        # Calculate next payment date based on frequency
-        next_payment = self._calculate_next_payment_date(join_date, payment_frequency)
+        # Calculate next payment date based on frequency, preserving join_date day
+        next_payment = self._calculate_next_payment_date(join_date, payment_frequency, billing_day=join_date.day)
         
         cursor.execute("""
             INSERT INTO members (id, name, email, phone, join_date, membership_type,
@@ -264,10 +264,20 @@ class Database:
         if member:
             payment_frequency = member['payment_frequency']
             
+            # Get join_date to preserve the original billing day
+            join_date = member.get('join_date')
+            if join_date:
+                if isinstance(join_date, str):
+                    join_date = datetime.strptime(join_date, '%Y-%m-%d').date()
+                billing_day = join_date.day
+            else:
+                billing_day = None
+            
             # For daily payments, use the actual payment date to calculate next payment
             # For all other frequencies, use the original due date to preserve billing cycle day
             if payment_frequency == "Daily":
                 base_date = payment_date
+                billing_day = None  # Daily doesn't need billing_day preservation
             else:
                 # Use the original due date (next_payment_date) to calculate next payment,
                 # not the actual payment date. This preserves the billing cycle day.
@@ -281,9 +291,9 @@ class Database:
                 
                 base_date = original_due_date
             
-            # Calculate next payment date
+            # Calculate next payment date, preserving billing_day from join_date
             next_payment = self._calculate_next_payment_date(
-                base_date, payment_frequency
+                base_date, payment_frequency, billing_day=billing_day
             )
             cursor.execute("""
                 UPDATE members 
@@ -378,47 +388,16 @@ class Database:
                         billing_day = last_payment.day
                     
                     # Calculate next payment from last_payment_date, preserving billing cycle day
-                    # For monthly: add 1 month to last_payment_date, but use billing_day
-                    if frequency == "Monthly":
-                        if last_payment.month == 12:
-                            candidate = date(last_payment.year + 1, 1, billing_day)
-                        else:
-                            candidate = date(last_payment.year, last_payment.month + 1, billing_day)
-                    elif frequency == "Quarterly":
-                        month = last_payment.month + 3
-                        year = last_payment.year
-                        if month > 12:
-                            month -= 12
-                            year += 1
-                        candidate = date(year, month, billing_day)
-                    elif frequency == "6 Months" or frequency == "Semi-Annual":
-                        month = last_payment.month + 6
-                        year = last_payment.year
-                        if month > 12:
-                            month -= 12
-                            year += 1
-                        candidate = date(year, month, billing_day)
-                    elif frequency == "Yearly" or frequency == "Annual":
-                        candidate = date(last_payment.year + 1, last_payment.month, billing_day)
-                    else:
-                        # Default to monthly
-                        if last_payment.month == 12:
-                            candidate = date(last_payment.year + 1, 1, billing_day)
-                        else:
-                            candidate = date(last_payment.year, last_payment.month + 1, billing_day)
+                    # Use _calculate_next_payment_date with billing_day to preserve original join date day
+                    fixed_next_payment = self._calculate_next_payment_date(
+                        last_payment, frequency, billing_day=billing_day
+                    )
                     
-                    # Handle invalid dates (e.g., Jan 31 -> Feb 31)
-                    from calendar import monthrange
-                    try:
-                        fixed_next_payment = candidate
-                    except ValueError:
-                        # Day doesn't exist in target month, use last day
-                        last_day = monthrange(candidate.year, candidate.month)[1]
-                        fixed_next_payment = date(candidate.year, candidate.month, last_day)
-                    
-                    # Ensure it's ahead of last_payment_date
+                    # Ensure it's ahead of last_payment_date (in case of edge cases)
                     if fixed_next_payment <= last_payment:
-                        fixed_next_payment = self._calculate_next_payment_date(fixed_next_payment, frequency)
+                        fixed_next_payment = self._calculate_next_payment_date(
+                            fixed_next_payment, frequency, billing_day=billing_day
+                        )
                 
                 # Update the database
                 cursor.execute("""
@@ -725,46 +704,61 @@ class Database:
         return [dict(row) for row in cursor.fetchall()]
     
     # Helper methods
-    def _calculate_next_payment_date(self, last_date: date, frequency: str) -> date:
-        """Calculate next payment date based on frequency"""
-        def _safe_date(year: int, month: int, day: int) -> date:
-            """Create a date, adjusting day if it doesn't exist in the target month"""
-            try:
-                return date(year, month, day)
-            except ValueError:
-                # Day doesn't exist in target month (e.g., Jan 31 → Feb 31)
-                # Use the last day of the target month instead
-                from calendar import monthrange
-                last_day = monthrange(year, month)[1]
-                return date(year, month, last_day)
+    def _safe_date(self, year: int, month: int, day: int) -> date:
+        """Create a date, adjusting day if it doesn't exist in the target month"""
+        try:
+            return date(year, month, day)
+        except ValueError:
+            # Day doesn't exist in target month (e.g., Jan 31 → Feb 31)
+            # Use the last day of the target month instead
+            from calendar import monthrange
+            last_day = monthrange(year, month)[1]
+            return date(year, month, last_day)
+    
+    def _calculate_next_payment_date(self, last_date: date, frequency: str, billing_day: int = None) -> date:
+        """
+        Calculate next payment date based on frequency.
+        
+        Args:
+            last_date: The base date to calculate from
+            frequency: Payment frequency (Daily, Monthly, Quarterly, etc.)
+            billing_day: Optional billing day to preserve (e.g., from join_date).
+                        If not provided, uses last_date.day
+        
+        Returns:
+            Next payment date, preserving billing_day when possible
+        """
+        # Use billing_day if provided, otherwise use last_date.day
+        target_day = billing_day if billing_day is not None else last_date.day
         
         if frequency == "Daily":
             # Add 1 day
             return date.fromordinal(last_date.toordinal() + 1)
         elif frequency == "Monthly":
-            # Add 1 month
+            # Add 1 month, preserving billing_day
             if last_date.month == 12:
-                return _safe_date(last_date.year + 1, 1, last_date.day)
+                return self._safe_date(last_date.year + 1, 1, target_day)
             else:
-                return _safe_date(last_date.year, last_date.month + 1, last_date.day)
+                return self._safe_date(last_date.year, last_date.month + 1, target_day)
         elif frequency == "Quarterly":
-            # Add 3 months
+            # Add 3 months, preserving billing_day
             month = last_date.month + 3
             year = last_date.year
             if month > 12:
                 month -= 12
                 year += 1
-            return _safe_date(year, month, last_date.day)
+            return self._safe_date(year, month, target_day)
         elif frequency == "6 Months" or frequency == "Semi-Annual":
-            # Add 6 months
+            # Add 6 months, preserving billing_day
             month = last_date.month + 6
             year = last_date.year
             if month > 12:
                 month -= 12
                 year += 1
-            return _safe_date(year, month, last_date.day)
+            return self._safe_date(year, month, target_day)
         elif frequency == "Yearly" or frequency == "Annual":
-            return _safe_date(last_date.year + 1, last_date.month, last_date.day)
+            # Add 1 year, preserving billing_day
+            return self._safe_date(last_date.year + 1, last_date.month, target_day)
         else:  # Default to daily
             return date.fromordinal(last_date.toordinal() + 1)
     
@@ -774,8 +768,8 @@ class Database:
         """Assign a locker to a member and automatically record initial payment"""
         cursor = self.conn.cursor()
         
-        # Calculate next payment date based on frequency
-        next_payment = self._calculate_next_payment_date(start_date, payment_frequency)
+        # Calculate next payment date based on frequency, preserving start_date day
+        next_payment = self._calculate_next_payment_date(start_date, payment_frequency, billing_day=start_date.day)
         
         # Insert locker record
         cursor.execute("""
@@ -816,10 +810,20 @@ class Database:
         # Update locker payment dates
         payment_frequency = locker_dict['payment_frequency']
         
+        # Get start_date to preserve the original billing day
+        start_date = locker_dict.get('start_date')
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            billing_day = start_date.day
+        else:
+            billing_day = None
+        
         # For daily payments, use the actual payment date to calculate next payment
         # For all other frequencies, use the original due date to preserve billing cycle day
         if payment_frequency == "Daily":
             base_date = payment_date
+            billing_day = None  # Daily doesn't need billing_day preservation
         else:
             # Use the original due date (next_payment_date) to calculate next payment,
             # not the actual payment date. This preserves the billing cycle day.
@@ -833,8 +837,8 @@ class Database:
             
             base_date = original_due_date
         
-        # Calculate next payment date
-        next_payment = self._calculate_next_payment_date(base_date, payment_frequency)
+        # Calculate next payment date, preserving billing_day from start_date
+        next_payment = self._calculate_next_payment_date(base_date, payment_frequency, billing_day=billing_day)
         cursor.execute("""
             UPDATE lockers 
             SET last_payment_date = ?, next_payment_date = ?

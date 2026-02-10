@@ -219,16 +219,114 @@ class FeeManagement(ctk.CTkFrame):
         )
         history_title.pack(pady=(20, 10))
         
+        # Filter section
+        filter_frame = ctk.CTkFrame(history_frame, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=20, pady=(0, 10))
+        
+        filter_label = ctk.CTkLabel(
+            filter_frame,
+            text="Filters:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#1a1a2e"
+        )
+        filter_label.pack(anchor="w", pady=(0, 8))
+        
+        # Filter inputs row
+        filter_inputs_frame = ctk.CTkFrame(filter_frame, fg_color="transparent")
+        filter_inputs_frame.pack(fill="x")
+        
+        # Member Name filter
+        name_label = ctk.CTkLabel(
+            filter_inputs_frame,
+            text="Member Name:",
+            font=ctk.CTkFont(size=12),
+            text_color="#64748b",
+            width=100
+        )
+        name_label.pack(side="left", padx=(0, 5))
+        
+        self.filter_name = ctk.CTkEntry(
+            filter_inputs_frame,
+            placeholder_text="Filter by name...",
+            width=150,
+            height=30,
+            font=ctk.CTkFont(size=12)
+        )
+        self.filter_name.pack(side="left", padx=(0, 10))
+        self.filter_name.bind("<KeyRelease>", lambda e: self.refresh_payment_list())
+        
+        # Member ID filter
+        id_label = ctk.CTkLabel(
+            filter_inputs_frame,
+            text="Member ID:",
+            font=ctk.CTkFont(size=12),
+            text_color="#64748b",
+            width=80
+        )
+        id_label.pack(side="left", padx=(0, 5))
+        
+        self.filter_id = ctk.CTkEntry(
+            filter_inputs_frame,
+            placeholder_text="Filter by ID...",
+            width=100,
+            height=30,
+            font=ctk.CTkFont(size=12)
+        )
+        self.filter_id.pack(side="left", padx=(0, 10))
+        self.filter_id.bind("<KeyRelease>", lambda e: self.refresh_payment_list())
+        
+        # Date filter
+        date_label = ctk.CTkLabel(
+            filter_inputs_frame,
+            text="Date:",
+            font=ctk.CTkFont(size=12),
+            text_color="#64748b",
+            width=50
+        )
+        date_label.pack(side="left", padx=(0, 5))
+        
+        self.filter_date = ctk.CTkEntry(
+            filter_inputs_frame,
+            placeholder_text="YYYY-MM-DD",
+            width=120,
+            height=30,
+            font=ctk.CTkFont(size=12)
+        )
+        self.filter_date.pack(side="left", padx=(0, 10))
+        self.filter_date.bind("<KeyRelease>", lambda e: self.refresh_payment_list())
+        
+        # Clear filters button
+        clear_filters_btn = ctk.CTkButton(
+            filter_inputs_frame,
+            text="Clear Filters",
+            command=self.clear_filters,
+            fg_color="#64748b",
+            hover_color="#475569",
+            font=ctk.CTkFont(size=11),
+            width=100,
+            height=30
+        )
+        clear_filters_btn.pack(side="left")
+        
         # Table
         table_frame = ctk.CTkFrame(history_frame, fg_color="transparent")
         table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         
-        columns = ('ID', 'Member', 'Amount', 'Date', 'Notes')
+        columns = ('Member ID', 'Member', 'Amount', 'Date', 'Notes')
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=10)
+        
+        # Configure column widths
+        column_widths = {
+            'Member ID': 80,
+            'Member': 150,
+            'Amount': 100,
+            'Date': 100,
+            'Notes': 200
+        }
         
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=100)
+            self.tree.column(col, width=column_widths.get(col, 100))
         
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -352,19 +450,79 @@ Next Payment: {member.get('next_payment_date', 'N/A')}"""
         self.notes_input.delete(0, "end")
     
     def refresh_payment_list(self):
-        """Refresh payment history"""
+        """Refresh payment history with filters"""
         for item in self.tree.get_children():
             self.tree.delete(item)
         
+        # Get all payments
         payments = self.db.get_all_payments()
-        for p in payments:
+        
+        # Apply filters
+        filtered_payments = self.apply_filters(payments)
+        
+        # Populate table
+        for p in filtered_payments:
             self.tree.insert('', 'end', values=(
-                p['id'],
-                p['member_name'],
+                p.get('member_id', 'N/A'),  # Member ID
+                p.get('member_name', 'N/A'),  # Member Name
                 f"₹{p['amount']:.2f}",
                 p['payment_date'],
                 p.get('notes', '')
             ))
+    
+    def apply_filters(self, payments):
+        """Apply filters to payment list"""
+        filtered = payments
+        
+        # Filter by member name
+        name_filter = self.filter_name.get().strip().lower()
+        if name_filter:
+            filtered = [p for p in filtered if name_filter in p.get('member_name', '').lower()]
+        
+        # Filter by member ID
+        id_filter = self.filter_id.get().strip()
+        if id_filter:
+            try:
+                # Try to match exact ID
+                target_id = int(id_filter)
+                filtered = [p for p in filtered if p.get('member_id') == target_id]
+            except ValueError:
+                # If not a number, try string match
+                filtered = [p for p in filtered if id_filter in str(p.get('member_id', ''))]
+        
+        # Filter by date
+        date_filter = self.filter_date.get().strip()
+        if date_filter:
+            try:
+                # Try to parse as date
+                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+                filtered = [p for p in filtered if self._matches_date(p.get('payment_date'), filter_date)]
+            except ValueError:
+                # If invalid date format, try string match
+                filtered = [p for p in filtered if date_filter in str(p.get('payment_date', ''))]
+        
+        return filtered
+    
+    def _matches_date(self, payment_date, filter_date):
+        """Check if payment date matches filter date"""
+        if not payment_date:
+            return False
+        
+        # Convert payment_date to date object if it's a string
+        if isinstance(payment_date, str):
+            try:
+                payment_date = datetime.strptime(payment_date, '%Y-%m-%d').date()
+            except ValueError:
+                return False
+        
+        return payment_date == filter_date
+    
+    def clear_filters(self):
+        """Clear all filters"""
+        self.filter_name.delete(0, "end")
+        self.filter_id.delete(0, "end")
+        self.filter_date.delete(0, "end")
+        self.refresh_payment_list()
     
     def update_alerts(self):
         """Update payment alerts"""
